@@ -1,0 +1,853 @@
+// Oblivion Alchemy Recipes Finder
+// Refactored for Oblivion skill-based effect restrictions
+
+function getLineNumber() {
+    const err = new Error();
+    const line = err.stack.split('\n')[2].match(/:(\d+):/)[1];
+    return line;
+}
+
+function getCallerLineNumber() {
+    const err = new Error();
+    const stack = err.stack.split('\n');
+    let callerLine = stack[3] ? stack[3].match(/:(\d+):/) : null;
+    callerLine = callerLine ? callerLine[1] : '';
+    const callerName = stack[3] ? stack[3].split(/\s+/)[2] : '';
+    return stack[3].split('at ')[1];
+    // return callerLine +': '+ callerName;
+    // return callerLine ? callerLine[1] : null;
+}
+
+let dbg = 0; // 1= findMatches; 2= add/deleteItem; 4=future; 8=future;
+const deleteIcon = "i/delete.png";
+const addItemIcon = "i/plus.png";
+const scriptAddIcon = "i/script_add.png";
+const scriptDeleteIcon = "i/script_delete.png";
+
+let firstRun = true;
+let filters = [];
+let matches = [];
+let have = [];
+let exclude = [];
+
+const effects = [
+    ["Burden", 43, 0],
+    ["Chameleon", 43, 1],
+    ["Cure Disease", 43, 1],
+    ["Cure Paralysis", 43, 1],
+    ["Cure Poison", 43, 1],
+    ["Damage Agility", 43, 0],
+    ["Damage Endurance", 43, 0],
+    ["Damage Fatigue", 43, 0],
+    ["Damage Health", 43, 0],
+    ["Damage Intelligence", 43, 0],
+    ["Damage Luck", 43, 0],
+    ["Damage Magicka", 43, 0],
+    ["Damage Personality", 43, 0],
+    ["Damage Speed", 43, 0],
+    ["Damage Strength", 43, 0],
+    ["Damage Willpower", 43, 0],
+    ["Detect Life", 43, 1],
+    ["Dispel", 43, 1],
+    ["Drain Fatigue", 43, 0],
+    ["Drain Health", 43, 0],
+    ["Feather", 43, 1],
+    ["Fire Damage", 43, 0],
+    ["Fire Shield", 43, 1],
+    ["Fortify Agility", 43, 1],
+    ["Fortify Endurance", 43, 1],
+    ["Fortify Fatigue", 43, 1],
+    ["Fortify Health", 43, 1],
+    ["Fortify Intelligence", 43, 1],
+    ["Fortify Luck", 43, 1],
+    ["Fortify Magicka", 43, 1],
+    ["Fortify Personality", 43, 1],
+    ["Fortify Speed", 43, 1],
+    ["Fortify Strength", 43, 1],
+    ["Fortify Willpower", 43, 1],
+    ["Frost Damage", 43, 0],
+    ["Frost Shield", 43, 1],
+    ["Invisibility", 43, 1],
+    ["Light", 43, 1],
+    ["Night-Eye", 43, 1],
+    ["Paralyze", 43, 0],
+    ["Reflect Damage", 43, 1],
+    ["Reflect Spell", 43, 1],
+    ["Resist Disease", 43, 1],
+    ["Resist Fire", 43, 1],
+    ["Resist Frost", 43, 1],
+    ["Resist Paralysis", 43, 1],
+    ["Resist Poison", 43, 1],
+    ["Resist Shock", 43, 1],
+    ["Restore Agility", 43, 1],
+    ["Restore Endurance", 43, 1],
+    ["Restore Fatigue", 43, 1],
+    ["Restore Health", 43, 1],
+    ["Restore Intelligence", 43, 1],
+    ["Restore Luck", 43, 1],
+    ["Restore Magicka", 43, 1],
+    ["Restore Personality", 43, 1],
+    ["Restore Speed", 43, 1],
+    ["Restore Strength", 43, 1],
+    ["Restore Willpower", 43, 1],
+    ["Shield", 43, 1],
+    ["Shock Damage", 43, 0],
+    ["Shock Shield", 43, 1],
+    ["Silence", 43, 0],
+    ["Water Breathing", 43, 1],
+    ["Water Walking", 43, 1]
+];
+
+const allIngredients = [
+    ["Alkanet Flower", [52, 46, 37, 7], 5, 0],
+    ["Alocasia Fruit", [50, 37, 51, 11], 4, 1],
+    ["Aloe Vera Leaves", [50, 51, 11, 36], 2, 0],
+    ["Apple", [50, 10, 33, 8], 5, 0],
+    ["Arrowroot", [48, 10, 32, 0], 3, 0],
+    ["Aster Bloom Core", [48, 17, 59, 0], 3, 1],
+    ["Bergamot Seeds", [42, 17, 11, 62], 5, 0],
+    ["Black Tar", [7, 13, 8, 60], 5, 1],
+    ["Blackberry", [50, 47, 24, 54], 4, 0],
+    ["Blister Pod Cap", [54, 29, 38, 36], 4, 1],
+    ["Bloodgrass", [1, 45, 0, 26], 4, 0],
+    ["Boar Meat", [51, 13, 26, 0], 2, 0],
+    ["Bog Beacon Asco Cap", [54, 59, 12, 6], 3, 0],
+    ["Bone Marrow", [8, 34, 11, 39], 2, 1],
+    ["Bone Shard", [58, 35, 11, 10], 2, 1],
+    ["Bonemeal", [7, 43, 28, 38], 4, 0],
+    ["Bread Loaf", [50, 16, 5, 14], 5, 0],
+    ["Cairn Bolete Cap", [51, 9, 45, 60], 4, 0],
+    ["Carrot", [50, 38, 27, 6], 4, 0],
+    ["Cheese Wedge", [50, 43, 22, 5], 5, 0],
+    ["Clannfear Claws", [2, 42, 39, 8], 2, 0],
+    ["Clouded Funnel Cap", [52, 27, 6, 11], 5, 0],
+    ["Columbine Root Pulp", [55, 44, 29, 1], 5, 0],
+    ["Congealed Putrescence", [57, 21, 54, 8], 3, 1],
+    ["Corn", [50, 52, 5, 61], 5, 0],
+    ["Crab Meat", [49, 47, 7, 22], 4, 0],
+    ["Daedra Heart", [51, 61, 11, 62], 3, 0],
+    ["Daedra Silk", [0, 38, 1, 6], 2, 0],
+    ["Daedra Venin", [39, 50, 8, 40], 2, 0],
+    ["Daedroth Teeth", [38, 35, 0, 37], 2, 0],
+    ["Dragon's Tongue", [43, 8, 51, 22], 2, 0],
+    ["Dreugh Wax", [7, 46, 63, 8], 2, 0],
+    ["Ectoplasm", [60, 17, 29, 8], 3, 0],
+    ["Elytra Ichor", [54, 0, 1, 62], 3, 1],
+    ["Fennel Seeds", [50, 9, 11, 39], 2, 0],
+    ["Fire Salts", [21, 44, 54, 22], 2, 0],
+    ["Flame Stalk", [51, 21, 35, 36], 4, 1],
+    ["Flax Seeds", [54, 20, 59, 8], 5, 0],
+    ["Flour", [50, 12, 25, 40], 3, 0],
+    ["Fly Amanita Cap", [48, 0, 51, 60], 5, 0],
+    ["Foxglove Nectar", [46, 45, 53, 42], 5, 0],
+    ["Frost Salts", [34, 43, 62, 35], 2, 0],
+    ["Fungus Stalk", [57, 64, 26, 54], 5, 1],
+    ["Garlic", [42, 5, 35, 32], 2, 0],
+    ["Ginseng", [10, 4, 0, 29], 3, 0],
+    ["Glow Dust", [56, 37, 41, 8], 2, 0],
+    ["Gnarl Bark", [49, 59, 22, 8], 4, 1],
+    ["Grapes", [50, 64, 17, 8], 3, 0],
+    ["Green Stain Cup Cap", [50, 13, 40, 8], 5, 0],
+    ["Grummite Eggs", [11, 17, 1, 62], 5, 1],
+    ["Ham", [50, 51, 11, 10], 2, 0],
+    ["Harrada", [8, 11, 62, 39], 2, 0],
+    ["Hound Tooth", [4, 16, 0, 36], 2, 1],
+    ["Hunger Tongue", [4, 2, 21, 29], 2, 1],
+    ["Hydnum Azure Giant Spore", [49, 16, 26, 35], 5, 1],
+    ["Imp Gall", [30, 3, 8, 21], 3, 0],
+    ["Lady's Mantle Leaves", [51, 6, 38, 20], 2, 0],
+    ["Lady's Smock Leaves", [52, 43, 7, 26], 5, 0],
+    ["Lavender Sprig", [55, 33, 51, 10], 5, 0],
+    ["Leek", [50, 23, 12, 14], 3, 0],
+    ["Letifer Orca Digestive Slime", [8, 7, 11, 50], 3, 1],
+    ["Lettuce", [50, 53, 22, 12], 4, 0],
+    ["Mandrake Root", [2, 46, 5, 33], 4, 0],
+    ["Milk Thistle Seeds", [37, 34, 3, 39], 5, 0],
+    ["Minotaur Horn", [58, 0, 24, 45], 2, 0],
+    ["Monkshood Root Pulp", [57, 9, 24, 0], 5, 0],
+    ["Morning Glory Root Pulp", [0, 15, 35, 11], 3, 0],
+    ["Mort Flesh", [7, 10, 26, 62], 3, 0],
+    ["Motherwort Sprig", [46, 7, 62, 36], 5, 0],
+    ["Mutton", [26, 7, 17, 11], 3, 0],
+    ["Nightshade", [8, 0, 10, 29], 5, 0],
+    ["Ogre's Teeth", [9, 45, 60, 32], 2, 0],
+    ["Onion", [50, 63, 16, 8], 3, 0],
+    ["Orange", [50, 16, 0, 59], 2, 0],
+    ["Pear", [50, 13, 31, 8], 3, 0],
+    ["Peony Seeds", [57, 8, 13, 50], 4, 0],
+    ["Potato", [50, 59, 0, 35], 4, 0],
+    ["Primrose Leaves", [58, 55, 28, 14], 3, 0],
+    ["Pumpkin", [50, 5, 12, 16], 3, 0],
+    ["Radish", [50, 6, 1, 0], 3, 0],
+    ["Rat Meat", [7, 16, 11, 62], 4, 0],
+    ["Red Kelp Gas Bladder", [56, 63, 2, 29], 5, 1],
+    ["Redwort Flower", [44, 4, 8, 36], 3, 0],
+    ["Rice", [50, 62, 61, 5], 4, 0],
+    ["Rot Scale", [0, 8, 62, 39], 2, 1],
+    ["Sacred Lotus Seeds", [44, 8, 20, 17], 4, 0],
+    ["Scales", [15, 63, 8, 64], 2, 0],
+    ["Scalon Fin", [63, 8, 60, 0], 4, 1],
+    ["Scamp Skin", [11, 47, 40, 8], 2, 0],
+    ["Screaming Maw", [58, 16, 1, 51], 3, 1],
+    ["Smoked Baliwog Leg", [50, 20, 51, 7], 2, 1],
+    ["Somnalius Frond", [56, 6, 26, 20], 4, 0],
+    ["Spiddal Stick", [8, 11, 21, 50], 2, 0],
+    ["St. Jahn's Wort Nectar", [47, 8, 4, 1], 4, 0],
+    ["Steel-Blue Entoloma Cap", [54, 21, 44, 0], 5, 0],
+    ["Stinkhorn Cap", [8, 54, 64, 36], 2, 0],
+    ["Strawberry", [50, 4, 8, 40], 4, 0],
+    ["Summer Bolete Cap", [48, 59, 12, 6], 4, 0],
+    ["Swamp Tentacle", [55, 63, 64, 26], 3, 1],
+    ["Sweetroll", [50, 42, 12, 26], 2, 0],
+    ["Taproot", [53, 6, 46, 61], 2, 0],
+    ["Thorn Hook", [8, 10, 54, 26], 2, 1],
+    ["Tiger Lily Nectar", [49, 14, 64, 15], 4, 0],
+    ["Tinder Polypore Cap", [58, 42, 36, 11], 4, 0],
+    ["Tomato", [50, 16, 0, 59], 4, 0],
+    ["Troll Fat", [5, 30, 15, 8], 2, 0],
+    ["Vampire Dust", [62, 42, 34, 36], 2, 0],
+    ["Venison", [51, 20, 8, 1], 5, 0],
+    ["Viper's Bugloss Leaves", [45, 38, 0, 3], 5, 0],
+    ["Void Essence", [51, 26, 32, 24], 2, 1],
+    ["Void Salts", [54, 8, 29, 17], 2, 0],
+    ["Watcher's Eye", [52, 29, 37, 41], 2, 1],
+    ["Water Hyacinth Nectar", [10, 7, 54, 29], 3, 0],
+    ["Water Root Pod Pit", [51, 43, 22, 63], 3, 1],
+    ["Watermelon", [50, 37, 0, 8], 2, 0],
+    ["Wheat Grain", [50, 11, 26, 12], 3, 0],
+    ["White Seed Pod", [57, 63, 62, 37], 2, 0],
+    ["Wisp Core", [52, 0, 37, 1], 4, 1],
+    ["Wisp Stalk Caps", [8, 15, 9, 31], 4, 0],
+    ["Withering Moon", [54, 59, 2, 41], 5, 1],
+    ["Worm's Head Cap", [53, 38, 25, 39], 5, 1],
+    ["Wormwood Leaves", [25, 36, 8, 11], 3, 0]
+];
+
+// const ii = allIngredients.reduce((acc, [ingredientName], index) => {
+//     acc[ingredientName] = index;
+//     return acc;
+// }, {});
+
+const isle = id => allIngredients[id]?.[3] ? '<sup>si</sup>' : '';
+const relIngredient = allIngredients.map(item => item[0]);
+const relEffectList = allIngredients.map(item => item[1]);
+const relEffect = effects.map(effect => effect[0]);
+const relWorth = effects.map(effect => effect[1]);
+const relAffinity = effects.map(effect => effect[2]);
+// indexIngredient
+const ii = Object.fromEntries(
+    allIngredients.map(([ingredientName], index) => [ingredientName, index])
+);
+// showIngredient; si('Troll Fat'); 'Troll Fat: Damage Agility, Fortify Personality, Damage Willpower, Damage Health'
+const si = name => `${name}: ${allIngredients[ii[name]][1].map(i => effects[i][0]).join(', ')}`;
+// showAllIngredient
+function sai() {
+    allIngredients.forEach((e,i)=>{
+        console.log(si(e[0]));
+    });
+}
+
+function dump() {
+    for (const [ingredients, effectIds, value] of matches) {
+        console.log(JSON.stringify([ingredients, effectIds, value]));
+        for (const id of ingredients) { // Iterate over ingredient IDs directly
+            console.log([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
+        }
+        console.log('\t', effectIds.map(i => relEffect[i]).join(', '));
+        console.log(' ');
+    }
+}
+
+$(document).ready(() => {
+    $("#autocomplete").autocomplete({
+        source: relIngredient,
+        delay: 0,
+        autoFocus: true
+    });
+
+    $('input[name="recipeSize"], input[name="alch"], input[name="freq"], #si').change(() => refresh(true));
+    $('input[name="pure"], input[name="sort"], #s0').change(() => refresh(false));
+    $(":button").button(); // Ensure button widget is applied (tooltips)
+
+    effects.forEach((effect, index) => {
+        $("#effects").append(`<option value="${index}">${effect[0]}</option>`);
+    });
+
+    // buildEffects();
+});
+
+function buildEffects() {
+    const effectHtml = effects.map((effect, index) => `
+        <span class="effect" data-id="${index}" style="font-weight:bold;color:${effect[2] === 1 ? 'green' : 'red'}">
+            ${effect[0]} ($${effect[1]})
+        </span><br/>
+    `).join('');
+    $("#listeffects").html(effectHtml).css("visibility", "visible");
+    $("#listeffects .effect").tooltip({
+        content: hoverEffect,
+        position: {
+            my: "left center",
+            at: "right+10 center", // 10px right, vertically centered
+            collision: "fit"
+        },
+        open: function(event, ui) {
+            ui.tooltip.css("max-width", "300px");
+        }
+    });
+}
+
+// function hoverEffect() {
+//     const effectId = parseInt($(this).attr("data-id"), 10);
+//     const ingredients = allIngredients
+//         .filter((_, index) => relEffectList[index].includes(effectId))
+//         .map(item => item[0])
+//         .sort()
+//         .join("<br/>");
+// //  return `<b>Effect Worth:</b> ${relWorth[effectId]}<br/><b>Ingredients With Effect:</b><br/>${ingredients}`;
+//     return `<b>Ingredients With Effect:</b><br/>${ingredients}`;
+// }
+
+// function hoverEffect() {
+//     const effectId = parseInt($(this).attr("data-id"), 10);
+//     const ingredients = allIngredients
+//         .map((item, index) => {
+//             // Get the effect array for this ingredient
+//             const effectArray = allIngredients[index][1];
+//             // Find the index of effectId in the effect array
+//             const effectIndex = effectArray.findIndex(id => id === effectId);
+//             // Only include if effectId is found (effectIndex !== -1)
+//             if (effectIndex === -1) return null;
+//             // Return string with effect index and ingredient name
+//             return `${effectIndex+1}. ${item[0]}`;
+//         })
+//         .filter(item => item !== null) // Remove ingredients without the effect
+//         .sort()
+//         .join("<br/>");
+//     return `<b>Ingredients With Effect:</b><br/>${ingredients}`;
+// }
+
+// function hoverEffect() {
+//     const effectId = parseInt($(this).attr("data-id"), 10);
+//     const ingredients = allIngredients
+//         .map((item, index) => {
+//             const effectArray = allIngredients[index][1];
+//             const effectIndex = effectArray.findIndex(id => id === effectId);
+//             if (effectIndex === -1) return null;
+//             return `${effectIndex+1}~${item[0]}`;
+//         })
+//         .filter(item => item !== null) // Remove ingredients without the effect
+//         .sort();
+//     let save = 0;
+//     let tip = '<table>';
+//     for(let i = 0; i<ingredients.length; i++){
+//         let [index, str] = ingredients[i].split(/~/);
+//         if(save != index){
+//             save = index;
+//             tip += `<tr><td>${index}</td><td>${str}</td></tr>`
+//         }else{
+//             tip += `<tr><td></td><td>${str}</td></tr>`
+//         }
+//     }
+//     return `<b>Ingredients With Effect:</b><br/>${tip}</table>`;
+// }
+
+function hoverEffect() {
+  // Use native dataset instead of jQuery
+  const effectId = Number(this.dataset.id);
+  if (!Number.isInteger(effectId)) {
+    console.warn('Invalid effectId:', this.dataset.id);
+    return '<b>Ingredients With Effect:</b><br/><table></table>';
+  }
+
+  // Map ingredients to { index, name } objects, filter, and sort
+  const ingredientRows = allIngredients
+    .map((item, idx) => {
+      const effectArray = item[1] ?? [];
+      const effectIndex = effectArray.indexOf(effectId);
+      if (effectIndex === -1) return null;
+      return { index: effectIndex + 1, name: item[0] }; // 1-based index
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index || a.name.localeCompare(b.name)); // Sort by index, then name
+
+  // Build table with grouped indices
+  const tableRows = ingredientRows.reduce((html, { index, name }, i, arr) => {
+    const prevIndex = i > 0 ? arr[i - 1].index : null;
+    const indexCell = index !== prevIndex ? `<td>${index}</td>` : '<td></td>';
+    return `${html}<tr>${indexCell}<td>${name}</td></tr>`;
+  }, '');
+
+  return `<b>Ingredients With Effect:</b><br/><table>${tableRows}</table>`;
+}
+
+function hoverIngredients() {
+    const ingredientId = parseInt($(this).attr("data-name"), 10);
+    // console.log('ingredientId=',ingredientId);
+    if (ingredientId === 1000) return "";
+//  const ingredientEffects = relEffectList[ingredientId].sort();
+    const ingredientEffects = allIngredients[ingredientId][1];
+    let totalWorth = 0;
+    const effectsHtml = ingredientEffects.map(effectId => {
+        const effect = effects[effectId];
+        totalWorth += effect[1];
+        return `<span style="font-weight:bold;color:${effect[2] === 1 ? 'green' : 'red'}">${effect[0]}</span><br/>`;
+    }).join('');
+    return `${effectsHtml}<hr><b>Frequeency:</b> ${allIngredients[ingredientId][2]}`;
+}
+
+function ingredientOptions(id) {
+    if (id === undefined || id === 1000) return "";
+    return `
+        <br/>
+        <a href="#" onclick="removeHave(${id}); removeItem(${id});"><img src="${deleteIcon}"/></a>
+        <a href="#" onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></a>
+        <a href="#" onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></a>
+    `;
+}
+
+function addFilter() {
+    const hasEffect = !!parseInt($("#filter").val(), 10);
+    const effectId = parseInt($("#effects").val(), 10);
+    filters.push([
+        `${hasEffect ? "Has" : "Does not have"} ${relEffect[effectId]}`,
+        (effectIds) => hasEffect !== effectIds.includes(effectId)
+    ]);
+    offset = 0;
+    refresh(false);
+}
+
+function addItemFilter(ingredientId, hasIngredient) {
+    filters.push([
+        `${hasIngredient ? "Has" : "Does not have"} ${relIngredient[ingredientId]}`,
+        (_, ingredients) => hasIngredient !== ingredients.includes(ingredientId)
+    ]);
+    offset = 0;
+    refresh(false);
+}
+
+function refresh(rebuildMatches) {
+    console.log(rebuildMatches, getCallerLineNumber());
+    if (firstRun) {
+        $("#listeffects").css("visibility", "visible");
+        $("#controls").css("display", "block");
+        firstRun = false;
+    }
+    $("#results").html("");
+    $("#warn").html("Generating recipes, please wait...<br/><br/>");
+    setTimeout(() => refreshResults(rebuildMatches), 20);
+}
+
+// Global offset to track current page
+// let offset = 0;
+
+let filteredMatches, maxResults, offset = 0;
+
+function refreshResults(rebuildMatches) {
+    const isPure = $("#pure").prop("checked");
+    const isPositive = $("#positive").prop("checked");
+    const isNegative = $("#negative").prop("checked");
+    const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10) || 2;
+    const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 1;
+    maxResults = parseInt($("#max_results").val() || 100, 10);
+
+    if (rebuildMatches) {
+        deleteRare();
+        offset = 0;
+        matches = findMatches(alchemySkill, recipeSize);
+    }
+
+    const type = $('input[name="sort"]:checked').val() || '2';
+    if ($('#s0').prop('checked')) {
+        matches.sort((a, b) => a[2][type] - b[2][type] || a[2][3].localeCompare(b[2][3]));
+    } else {
+        matches.sort((a, b) => b[2][type] - a[2][type] || a[2][3].localeCompare(b[2][3]));
+    }
+
+    have.sort((a, b) => a - b);
+    const ingredientsHtml = `
+        <div id="ingredients" class="ingredients">
+            <h4>Your Ingredients: Icon Legend</h4>
+            <p>
+                <img src="${deleteIcon}"/> = Remove ingredient<br/>
+                <img src="${scriptAddIcon}"/> = Show recipes with this ingredient<br/>
+                <img src="${scriptDeleteIcon}"/> = Exclude recipes with this ingredient
+            </p>
+            <hr/>
+            ${have.map((id, index) => `
+                <a href="#" onclick="have.splice(${index}, 1); removeItem(${id});"><img src="${deleteIcon}"/></a>
+                <a href="#" onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></a>
+                <a href="#" onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></a>
+                <span class="ingredient" data-name="${id}">${upperFirst(relIngredient[id])} ${isle(id)}</span><br/>
+            `).join('')}
+            ${excludeIngredients()}
+        </div>
+    `;
+    $("#added").html(ingredientsHtml);
+    $("#ingredients .ingredient").tooltip({
+        content: hoverIngredients,
+        position: {
+            my: "left center",
+            at: "right+10 center",
+            collision: "fit"
+        },
+        items: "[data-name]"
+    });
+
+    if (have.length === 0) {
+        $("#results").html("<br/>No ingredients selected.");
+        $("#warn").html("");
+        return;
+    }
+
+    // if (rebuildMatches) {
+    //     matches = findMatches(alchemySkill, recipeSize);
+    // }
+
+    if (matches.length === 0) {
+        $("#results").html("<br/>No recipes found. Add more ingredients or adjust filters.");
+        $("#warn").html("");
+        return;
+    }
+
+    // Apply filters and affinity checks to get filtered matches
+    filteredMatches = matches.filter(([ingredients, effectIds, value]) => {
+        if (filters.length > 0 && filter(filters, effectIds, ingredients)) return false;
+        let affinity = null;
+        for (const id of effectIds) {
+            const effect = effects[id];
+            affinity = affinity === null ? effect[2] : affinity === effect[2] ? affinity : false;
+        }
+        return !((isPure && affinity === false) || (isPositive && affinity !== 1) || (isNegative && affinity !== 0));
+    });
+    console.log('filteredMatches=',filteredMatches.length);
+
+    const filterHtml = filters.length > 0
+        ? `${filters.map((f, i) => `
+            <a href="#" onclick="removeFilter(${i});"><img src="${deleteIcon}"/></a> ${f[0]}
+        `).join(", ")}<br/>`
+        : "";
+
+    let resultHtml = `
+        <br/>${filterHtml}
+        <table id="xyz" cellpadding="3" cellspacing="0" border="1">
+            <thead>
+                <tr>
+                    <th>Srt</th>
+                    <th>Ingredient 1</th>
+                    <th>Ingredient 2</th>
+                    <th>Ingredient 3</th>
+                    <th>Ingredient 4</th>
+                    <th>Effects</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    let count = 0;
+    // Paginate filtered matches
+    for (const [ingredients, effectIds, value] of filteredMatches.slice(offset, offset + maxResults)) {
+        count++;
+        const ingredientCells = [0, 1, 2, 3].map(i => {
+            const id = ingredients[i] ?? 1000;
+            const name = id === 1000 ? "none" : relIngredient[id];
+            return `
+                <td>
+                    <span data-name="${id}" class="ingredient">${name} ${isle(id)}</span>
+                    ${ingredientOptions(id)}
+                </td>
+            `;
+        }).join('');
+
+        const effectsHtml = effectIds.map(id => {
+            const effect = effects[id];
+            return `
+                <span class="effect" data-id="${id}" style="font-weight:bold;color:${effect[2] === 1 ? 'green' : 'red'}">
+                    ${effect[0]}
+                </span><br/>
+            `;
+        }).join('');
+
+        resultHtml += `
+            <tr>
+                <td>${value[type]}</td>
+                ${ingredientCells}
+                <td>${effectsHtml}</td>
+            </tr>
+        `;
+    }
+
+    resultHtml += `
+        </tbody>
+        </table>
+        <div>Showing ${offset + 1} to ${offset + count} of ${filteredMatches.length} recipes</div>
+        <br/><br/>
+    `;
+    $("#results").html(resultHtml);
+    $("#warn").html("");
+    console.log('have: ', have.length, 'exclude: ', exclude.length);
+    setTimeout(addHoverEffects, 100);
+
+}
+
+    // Keydown listener
+    // if (!refreshResults.listenerAdded) {
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'PageDown' || event.key === 'PageUp' || event.key === 'Home' || event.key === 'End') {
+                event.preventDefault(); // Prevent page scrolling
+            }
+            if (event.key === 'PageDown' && offset + maxResults < filteredMatches.length) {
+                offset += maxResults;
+                console.log(offset + maxResults,filteredMatches.length,(offset + maxResults) < filteredMatches.length);
+                refreshResults(false);
+            } else if (event.key === 'PageUp' && offset > 0) {
+                offset -= maxResults;
+                offset = Math.max(0, offset);
+                refreshResults(false);
+            } else if (event.key === 'Home' && offset > 0) {
+                offset = 0;
+                refreshResults(false);
+            } else if (event.key === 'End' && offset < filteredMatches.length - maxResults) {
+                offset = filteredMatches.length - maxResults;
+                // offset = Math.max(0, offset);
+                refreshResults(false);
+            }
+        });
+        refreshResults.listenerAdded = true;
+    // }
+
+function addHoverEffects() {
+    $(".effect").tooltip({
+        content: hoverEffect,
+        position: {
+            my: "right center",
+            at: "left-10 center",
+            collision: "fit"
+        },
+        items: "[data-id]"
+    });
+
+    $(".ingredient").tooltip({
+        content: hoverIngredients,
+        position: {
+            my: "left center",
+            at: "right+15 center",
+            collision: "fit"
+        },
+        items: "[data-name]",
+    });
+}
+
+function findMatches(alchemySkill, recipeSize) {
+    const result = [];
+    // if (recipeSize < 2 || recipeSize > 4) {
+    //     console.warn("Invalid recipeSize:", recipeSize, "must be 2, 3, or 4");
+    //     return [];
+    // }
+    if (have.length < recipeSize) {
+        console.warn("Not enough ingredients for recipe size", recipeSize, "have:", have.length);
+        return [];
+    }
+
+    // Helper to get usable effects based on skill
+    function getUsableEffects(ingredientId, skill) {
+        if (!allIngredients[ingredientId]) return [];
+        const effects = allIngredients[ingredientId][1];
+        if (skill < 25) return effects.slice(0, 1); // Novice
+        if (skill < 50) return effects.slice(0, 2); // Apprentice
+        if (skill < 75) return effects.slice(0, 3); // Journeyman
+        return effects; // Expert/Master
+    }
+
+    // Helper to get unique effects from pairwise intersections
+    function getPairwiseEffects(ingredientIds, effectArrays) {
+        const effects = new Set();
+        // Check all pairs of ingredients
+        for (let i = 0; i < ingredientIds.length - 1; i++) {
+            for (let j = i + 1; j < ingredientIds.length; j++) {
+                const pairEffects = intersect(effectArrays[i], effectArrays[j]);
+                for (const effectId of pairEffects) {
+                    // Verify effect is usable for this pair
+                    if (canUseEffect(effectId, alchemySkill, ingredientIds[i], ingredientIds[j])) {
+                        effects.add(effectId);
+                    }
+                }
+            }
+        }
+        return [...effects];
+    }
+
+    for (let i = 0; i < have.length - 1; i++) {
+        const i0 = have[i];
+        if (!allIngredients[i0]) continue;
+        const e0 = getUsableEffects(i0, alchemySkill);
+        for (let j = i + 1; j < have.length; j++) {
+            const i1 = have[j];
+            if (!allIngredients[i1]) continue;
+            const e1 = getUsableEffects(i1, alchemySkill);
+            const commonEffects = intersect(e0, e1).filter(effectId => canUseEffect(effectId, alchemySkill, i0, i1));
+
+            dbg&1 && console.log("2-ingredient pair:", relIngredient[i0], "+", relIngredient[i1], "effects:", commonEffects.map(id => relEffect[id]));
+
+            if (commonEffects.length > 0) { // && recipeSize === 2) {
+                const value = worth(commonEffects, [i0, i1]);
+                // if (typeof value === 'number' && !isNaN(value)) {
+                    result.push([[i0, i1], commonEffects, value]);
+                // }
+            }
+
+            if (recipeSize >= 3 && have.length >= 3) {
+                for (let k = j + 1; k < have.length; k++) {
+                    const i2 = have[k];
+                    if (!allIngredients[i2]) continue;
+                    const e2 = getUsableEffects(i2, alchemySkill);
+                    const threeEffects = getPairwiseEffects([i0, i1, i2], [e0, e1, e2]);
+                    dbg&1 && console.log("3-ingredient set:", relIngredient[i0], "+", relIngredient[i1], "+", relIngredient[i2], "effects:", threeEffects.map(id => relEffect[id]));
+
+                    if (threeEffects.length > 0) { // && recipeSize === 3) {
+                        const value = worth(threeEffects, [i0, i1, i2]);
+                        // if (typeof value === 'number' && !isNaN(value)) {
+                            result.push([[i0, i1, i2], threeEffects, value]);
+                        // }
+                    }
+
+                    if (recipeSize === 4 && have.length >= 4) {
+                        for (let m = k + 1; m < have.length; m++) {
+                            const i3 = have[m];
+                            if (!allIngredients[i3]) continue;
+                            const e3 = getUsableEffects(i3, alchemySkill);
+                            const fourEffects = getPairwiseEffects([i0, i1, i2, i3], [e0, e1, e2, e3]);
+                            dbg&1 && console.log("4-ingredient set:", relIngredient[i0], "+", relIngredient[i1], "+", relIngredient[i2], "+", relIngredient[i3], "effects:", fourEffects.map(id => relEffect[id]));
+
+                            if (fourEffects.length > 0) {
+                                const value = worth(fourEffects, [i0, i1, i2, i3]);
+                                // if (typeof value === 'number' && !isNaN(value)) {
+                                    result.push([[i0, i1, i2, i3], fourEffects, value]);
+                                // }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    console.log("findMatches returning", result.length, "recipes");
+    return result;
+}
+
+function canUseEffect(effectId, alchemySkill, ...ingredientIds) {
+    // Ensure effect is usable for ALL ingredients
+    for (const id of ingredientIds) {
+        const effects = allIngredients[id]?.[1] || [];
+        const effectIndex = effects.indexOf(effectId);
+        if (effectIndex === -1) return false; // Effect not found in this ingredient
+        // Check if effect position is usable based on skill
+        if (effectIndex === 0) continue; // 1st effect always usable
+        if (effectIndex === 1 && alchemySkill < 25) return false; // 2nd effect needs Apprentice (25)
+        if (effectIndex === 2 && alchemySkill < 50) return false; // 3rd effect needs Journeyman (50)
+        if (effectIndex === 3 && alchemySkill < 75) return false; // 4th effect needs Expert/Master (75)
+    }
+    return true; // Effect is usable for all ingredients
+}
+
+function intersect(...arrays) {
+    if (arrays.length === 0) return [];
+    const result = arrays[0].filter(item => arrays.every(arr => arr.includes(item)));
+    return result;
+}
+
+function worth(effectIds, ingredients) {
+    return [ingredients.reduce((sum, id) => sum + allIngredients[id][2], 0), effectIds.length, 0,
+            ingredients.reduce((str,num) => str + num.toString().padStart(3, "0"), '')];
+}
+
+function filter(filterList, effectIds, ingredients) {
+    return filterList.some(([_, fn]) => fn(effectIds, ingredients));
+}
+
+function add() {
+    const value = $("#autocomplete").val().toLowerCase();
+    const index = relIngredient.findIndex(ing => ing.toLowerCase() === value);
+    if (index === -1 || have.includes(index)) return;
+    removeRare(index);
+    have.push(index);
+    refresh(true);
+    $("#autocomplete").val("");
+}
+
+function addAll() {
+    // have = allIngredients.map((_, i) => i);
+    // deleteRare();
+    refresh(true);
+}
+
+function addItem(id) {
+    dbg&2 && console.log('addItem', id)
+    if (!have.includes(id)) {
+        have.push(id);
+        removeRare(id);
+
+        const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10);
+        const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10);
+        matches = findMatches(alchemySkill, recipeSize);
+
+        offset = 0;
+        refresh(false);
+    }
+}
+
+function removeItem(id) {
+    dbg&2 && console.log('removeItem', id)
+    exclude.push(id);
+    matches = matches.filter(match => match && !match[0].includes(id));
+
+    offset = 0;
+    refresh(false);
+}
+
+function removeHave(id) {
+    have = have.filter(h => h !== id);
+}
+
+function removeRare(id) {
+    exclude = exclude.filter(e => e !== id);
+}
+
+function deleteRare() {
+    exclude = [];
+    const freq = parseInt($('input[name="freq"]:checked').val(), 10);
+    const si = $("#si").prop("checked");
+
+    allIngredients.forEach((ingredient, index) => {
+        if ((!si && ingredient[3] === 1) || ingredient[2] <= freq) {
+            exclude.push(index);
+        }
+    });
+
+    have = allIngredients
+        .map((_, i) => i)
+        .filter(i => !exclude.includes(i));
+
+    dbg&2 && console.log("deleteRare:", 'freq=', freq, 'si=', si, "have", have.length, "excluded", exclude.length); // exclude.map(id => relIngredient[id]));
+}
+
+function removeFilter(index){
+    offset = 0;
+    filters.splice(index, 1); 
+    refresh(false);
+}
+
+function excludeIngredients() {
+    exclude.sort((a, b) => a - b);
+    return `
+        <hr/>
+        <h4>Rare Ingredients Excluded</h4>
+        ${exclude.map(id => `
+            <a href="#" onclick="addItem(${id});"><img src="${addItemIcon}"/></a>
+            <span class="ingredient" data-name="${id}">${upperFirst(relIngredient[id])}&thinsp;${isle(id)}</span><br/>
+        `).join('')}
+    `;
+}
+
+function upperFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}

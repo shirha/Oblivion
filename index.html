@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Oblivion alchemy potion recipes. Find all possible recipes based on your ingredients, sorted by value. Supports skill-based effect restrictions.">
+    <meta name="description" content="Added Oblivion ingredients to rp.eliteskills.com's Skyrim Alchemy Recipes Finder.">
+    <meta name="author" content="Jimmy Ruska">
+    <title>Oblivion Alchemy Recipes Finder</title>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="i/oblivion.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Oblivion Alchemy Recipes Finder</h2>
+        <p>Find all possible potion recipes based on your ingredients, sorted by value. Supports Oblivion's skill-based effect restrictions. See <a href="https://en.uesp.net/oblivion/alchemy/alc_calc.php" target="_blank">UESP</a></p>
+    </div>
+    <div id="wrapper">
+        <aside id="left" role="navigation">
+            <div id="added">&nbsp;</div>
+            <div id="listeffects" class="effect-list"></div>
+        </aside>
+        <main id="right" role="main">
+            <div class="input-group">
+                <label for="autocomplete">Ingredient:</label>
+                <input id="autocomplete" class="ui-corner-all" />
+                <button class="ui-corner-all" onclick="add()">Add</button>
+                <button class="ui-corner-all" onclick="addAll()">Add All Ingredients</button>
+            </div>
+            <div id="warn" class="warning"></div>
+            <form id="controls" class="controls">
+                <table id="field"><tr><td colspan=2>
+                <fieldset>
+                    <legend>Recipe Size<sup>&thinsp;†</sup></legend>
+                    <label><input type="radio" name="recipeSize" id="two" value="2" checked> 2</label>
+                    <label><input type="radio" name="recipeSize" id="three" value="3"> 3</label>
+                    <label><input type="radio" name="recipeSize" id="four" value="4"> 4 Ingredients</label> | 
+                    <label>Max Recipes: <input id="max_results" class="ui-corner-all" size="3" maxlength="5" value="8"></label>
+                    <button type="button" class="ui-corner-all" onclick="refresh(false)">Update</button>
+                </fieldset>
+                </td><td class="more">
+                <fieldset>
+                    <legend>Mortar & Pestle</legend>
+                    <select id="mortar" disabled>
+                    <option value="1">Novice</option>
+                    <option value="2">Apprentice</option>
+                    <option value="3">Journeyman</option>
+                    <option value="4">Expert</option>
+                    <option value="5">Master</option>
+                    </select>
+                </fieldset>
+                </td><td rowspan="4" class="more">
+                <fieldset>
+                    <legend>Sort by</legend>
+                    <label><input type="radio" name="sort" id="s1" value="0"> Freq</label><br>
+                    <label><input type="radio" name="sort" id="s2" value="1"> Eff</label><br>
+                    <label><input type="radio" name="sort" id="s3" value="2" checked> None</label><br>
+                    <label><input type="checkbox" id="s0"> Asc</label>
+                </fieldset> <!--  style="font-variant: normal;color: black;" -->
+                <div class="help">
+                    <hr style="width:75%;">Home<br>PgUp<br>PgDn<br>End
+                    <hr style="width:75%;"><sup>†</sup> Builds<br>matches<div>
+                </td></tr><tr><td>
+                <fieldset>
+                    <legend>Effect Filter</legend>
+                    <select id="filter">
+                        <option value="1" selected>Has</option>
+                        <option value="0">Not</option>
+                    </select>
+                    <select id="effects"></select>
+                    <button type="button" class="ui-corner-all" onclick="addFilter()">Add Filter</button>
+                </fieldset>
+                </td><td>
+                <fieldset>
+                    <legend>Extra Ingredients<sup>&thinsp;†</sup></legend>
+                    <label><input type="checkbox" id="si"> Shivering Isles</label>
+                </fieldset>
+                </td><td class="more">
+                <fieldset>
+                    <legend>Retort</legend>
+                    <select id="retort" disabled>
+                    <option value="1">Novice</option>
+                    <option value="2">Apprentice</option>
+                    <option value="3">Journeyman</option>
+                    <option value="4">Expert</option>
+                    <option value="5">Master</option>
+                    </select>
+                </fieldset>
+                </td></tr><tr><td>
+                <fieldset>
+                    <legend>Alchemy Skill Level<sup>&thinsp;†</sup></legend>
+                    <label><input type="radio" name="alch" id="a1" value="0"> 0</label>
+                    <label><input type="radio" name="alch" id="a2" value="25"> 25</label>
+                    <label><input type="radio" name="alch" id="a3" value="50"> 50</label>
+                    <label><input type="radio" name="alch" id="a4" value="75" checked> 75</label>
+                </fieldset>
+                </td><td>
+                <fieldset>
+                    <legend>Exclude Frequency<sup>&thinsp;†</sup></legend>
+                    <label><input type="radio" name="freq" id="f1" value="1"> 1</label>
+                    <label><input type="radio" name="freq" id="f2" value="2"> 2</label>
+                    <label><input type="radio" name="freq" id="f3" value="3" checked> 3</label>
+                    <label><input type="radio" name="freq" id="f4" value="4"> 4</label>
+                </fieldset>
+                </td><td class="more">
+                <fieldset>
+                    <legend>Alembic</legend>
+                    <select id="alembic" disabled>
+                    <option value="1">Novice</option>
+                    <option value="2">Apprentice</option>
+                    <option value="3">Journeyman</option>
+                    <option value="4">Expert</option>
+                    <option value="5">Master</option>
+                    </select>
+                </fieldset>
+                </td></tr><tr><td colspan="2">
+                <fieldset>
+                    <legend>Potion Type</legend>
+                    <label><input type="radio" name="pure" id="any" checked> Any</label>
+                    <label><input type="radio" name="pure" id="pure"> Pure</label>
+                    <label><input type="radio" name="pure" id="positive"> Pure Positive</label>
+                    <label><input type="radio" name="pure" id="negative"> Pure Negative</label>
+                </fieldset>                         
+                </td><td class="more">
+                <fieldset>
+                    <legend>Cancinator</legend>
+                    <select id="cancinator" disabled>
+                    <option value="1">Novice</option>
+                    <option value="2">Apprentice</option>
+                    <option value="3">Journeyman</option>
+                    <option value="4">Expert</option>
+                    <option value="5">Master</option>
+                    </select>
+                </fieldset>
+                </td></tr></table>
+            </form>
+            <div id="results"></div>
+        </main>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="i/oblivion.js"></script>
+</body>
+</html>
