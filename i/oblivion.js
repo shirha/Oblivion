@@ -1,12 +1,6 @@
 // Oblivion Alchemy Recipes Finder
 // Refactored for Oblivion skill-based effect restrictions
 
-function getLineNumber() {
-    const err = new Error();
-    const line = err.stack.split('\n')[2].match(/:(\d+):/)[1];
-    return line;
-}
-
 function getCallerLineNumber() {
     const err = new Error();
     const stack = err.stack.split('\n');
@@ -14,8 +8,6 @@ function getCallerLineNumber() {
     callerLine = callerLine ? callerLine[1] : '';
     const callerName = stack[3] ? stack[3].split(/\s+/)[2] : '';
     return stack[3].split('at ')[1];
-    // return callerLine +': '+ callerName;
-    // return callerLine ? callerLine[1] : null;
 }
 
 let dbg = 0; // 1= findMatches; 2= add/deleteItem; 4=future; 8=future;
@@ -24,6 +16,7 @@ const addItemIcon = "i/plus.png";
 const scriptAddIcon = "i/script_add.png";
 const scriptDeleteIcon = "i/script_delete.png";
 
+let preGeneratedRecipes = {};
 let firstRun = true;
 let filters = [];
 let matches = [];
@@ -247,18 +240,24 @@ function sai() {
     });
 }
 
-function dump() {
-    for (const [ingredients, effectIds, value] of matches) {
-        console.log(JSON.stringify([ingredients, effectIds, value]));
-        for (const id of ingredients) { // Iterate over ingredient IDs directly
-            console.log([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
-        }
-        console.log('\t', effectIds.map(i => relEffect[i]).join(', '));
-        console.log(' ');
-    }
-}
-
 $(document).ready(() => {
+    console.log('init');
+    fetch('i/recipes.json.gz')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.arrayBuffer(); // Get raw binary data
+        })
+        .then(buffer => {
+            // Decompress gzip
+            const decompressed = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
+            const data = JSON.parse(decompressed); // Parse JSON
+            preGeneratedRecipes = data;
+            $("#results").html("")
+            console.log('gz=', Object.keys(preGeneratedRecipes).length);
+        })
+        .catch(error => {
+            console.error('Fetch failed:', error);
+        });
     $("#autocomplete").autocomplete({
         source: relIngredient,
         delay: 0,
@@ -266,7 +265,7 @@ $(document).ready(() => {
     });
 
     $('input[name="recipeSize"], input[name="alch"], input[name="freq"], #si').change(() => refresh(true));
-    $('input[name="pure"], input[name="sort"], #s0').change(() => refresh(false));
+    $('input[name="pure"], input[name="sort"], #asc').change(() => refresh(false));
     $(":button").button(); // Ensure button widget is applied (tooltips)
 
     effects.forEach((effect, index) => {
@@ -295,61 +294,6 @@ function buildEffects() {
         }
     });
 }
-
-// function hoverEffect() {
-//     const effectId = parseInt($(this).attr("data-id"), 10);
-//     const ingredients = allIngredients
-//         .filter((_, index) => relEffectList[index].includes(effectId))
-//         .map(item => item[0])
-//         .sort()
-//         .join("<br/>");
-// //  return `<b>Effect Worth:</b> ${relWorth[effectId]}<br/><b>Ingredients With Effect:</b><br/>${ingredients}`;
-//     return `<b>Ingredients With Effect:</b><br/>${ingredients}`;
-// }
-
-// function hoverEffect() {
-//     const effectId = parseInt($(this).attr("data-id"), 10);
-//     const ingredients = allIngredients
-//         .map((item, index) => {
-//             // Get the effect array for this ingredient
-//             const effectArray = allIngredients[index][1];
-//             // Find the index of effectId in the effect array
-//             const effectIndex = effectArray.findIndex(id => id === effectId);
-//             // Only include if effectId is found (effectIndex !== -1)
-//             if (effectIndex === -1) return null;
-//             // Return string with effect index and ingredient name
-//             return `${effectIndex+1}. ${item[0]}`;
-//         })
-//         .filter(item => item !== null) // Remove ingredients without the effect
-//         .sort()
-//         .join("<br/>");
-//     return `<b>Ingredients With Effect:</b><br/>${ingredients}`;
-// }
-
-// function hoverEffect() {
-//     const effectId = parseInt($(this).attr("data-id"), 10);
-//     const ingredients = allIngredients
-//         .map((item, index) => {
-//             const effectArray = allIngredients[index][1];
-//             const effectIndex = effectArray.findIndex(id => id === effectId);
-//             if (effectIndex === -1) return null;
-//             return `${effectIndex+1}~${item[0]}`;
-//         })
-//         .filter(item => item !== null) // Remove ingredients without the effect
-//         .sort();
-//     let save = 0;
-//     let tip = '<table>';
-//     for(let i = 0; i<ingredients.length; i++){
-//         let [index, str] = ingredients[i].split(/~/);
-//         if(save != index){
-//             save = index;
-//             tip += `<tr><td>${index}</td><td>${str}</td></tr>`
-//         }else{
-//             tip += `<tr><td></td><td>${str}</td></tr>`
-//         }
-//     }
-//     return `<b>Ingredients With Effect:</b><br/>${tip}</table>`;
-// }
 
 function hoverEffect() {
   // Use native dataset instead of jQuery
@@ -428,7 +372,7 @@ function addItemFilter(ingredientId, hasIngredient) {
 function refresh(rebuildMatches) {
     console.log(rebuildMatches, getCallerLineNumber());
     if (firstRun) {
-        $("#listeffects").css("visibility", "visible");
+        // $("#listeffects").css("visibility", "visible");
         $("#controls").css("display", "block");
         firstRun = false;
     }
@@ -438,29 +382,30 @@ function refresh(rebuildMatches) {
 }
 
 // Global offset to track current page
-// let offset = 0;
-
 let filteredMatches, maxResults, offset = 0;
 
 function refreshResults(rebuildMatches) {
-    const isPure = $("#pure").prop("checked");
-    const isPositive = $("#positive").prop("checked");
-    const isNegative = $("#negative").prop("checked");
+    const pure = parseInt($('input[name="pure"]:checked').val(), 10) || 0;
+    const freq = parseInt($('input[name="freq"]:checked').val(), 10);
+    const si = $("#si").prop("checked");
+
     const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10) || 2;
-    const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 1;
+    const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 0;
     maxResults = parseInt($("#max_results").val() || 100, 10);
 
-    if (rebuildMatches) {
-        deleteRare();
+    if (typeof rebuildMatches === 'boolean' && rebuildMatches === true) {
+        deleteRare(freq, si);
         offset = 0;
-        matches = findMatches(alchemySkill, recipeSize);
+        matches = filterPreGeneratedRecipes(alchemySkill, recipeSize);
     }
 
-    const type = $('input[name="sort"]:checked').val() || '2';
-    if ($('#s0').prop('checked')) {
-        matches.sort((a, b) => a[2][type] - b[2][type] || a[2][3].localeCompare(b[2][3]));
+    // Rest of the function remains the same
+    const type = parseInt($('input[name="sort"]:checked').val(), 10) || 0;
+    console.log('type=',type);
+    if ($('#asc').prop('checked')) {
+        matches.sort((a, b) => a[4][type] - b[4][type] || a[4][3].localeCompare(b[4][3]));
     } else {
-        matches.sort((a, b) => b[2][type] - a[2][type] || a[2][3].localeCompare(b[2][3]));
+        matches.sort((a, b) => b[4][type] - a[4][type] || a[4][3].localeCompare(b[4][3]));
     }
 
     have.sort((a, b) => a - b);
@@ -477,7 +422,7 @@ function refreshResults(rebuildMatches) {
                 <a href="#" onclick="have.splice(${index}, 1); removeItem(${id});"><img src="${deleteIcon}"/></a>
                 <a href="#" onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></a>
                 <a href="#" onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></a>
-                <span class="ingredient" data-name="${id}">${upperFirst(relIngredient[id])} ${isle(id)}</span><br/>
+                <span class="ingredient" data-name="${id}">${upperFirst(relIngredient[id])}&thinsp;${isle(id)}</span><br/>
             `).join('')}
             ${excludeIngredients()}
         </div>
@@ -499,10 +444,6 @@ function refreshResults(rebuildMatches) {
         return;
     }
 
-    // if (rebuildMatches) {
-    //     matches = findMatches(alchemySkill, recipeSize);
-    // }
-
     if (matches.length === 0) {
         $("#results").html("<br/>No recipes found. Add more ingredients or adjust filters.");
         $("#warn").html("");
@@ -510,14 +451,12 @@ function refreshResults(rebuildMatches) {
     }
 
     // Apply filters and affinity checks to get filtered matches
-    filteredMatches = matches.filter(([ingredients, effectIds, value]) => {
+    filteredMatches = matches.filter(([ingredients, effectIds, skill, purity, value]) => {
         if (filters.length > 0 && filter(filters, effectIds, ingredients)) return false;
-        let affinity = null;
-        for (const id of effectIds) {
-            const effect = effects[id];
-            affinity = affinity === null ? effect[2] : affinity === effect[2] ? affinity : false;
-        }
-        return !((isPure && affinity === false) || (isPositive && affinity !== 1) || (isNegative && affinity !== 0));
+        if (ingredients.some(i => allIngredients[i][2] <= freq)) return false;
+        if (ingredients.some(i => allIngredients[i][3]) && !si) return false;
+        if (!(pure === 0 || pure === purity || pure&purity)) return false; // purity
+        return true;
     });
     console.log('filteredMatches=',filteredMatches.length);
 
@@ -545,14 +484,14 @@ function refreshResults(rebuildMatches) {
 
     let count = 0;
     // Paginate filtered matches
-    for (const [ingredients, effectIds, value] of filteredMatches.slice(offset, offset + maxResults)) {
+    for (const [ingredients, effectIds, skill, purity, value] of filteredMatches.slice(offset, offset + maxResults)) {
         count++;
         const ingredientCells = [0, 1, 2, 3].map(i => {
             const id = ingredients[i] ?? 1000;
             const name = id === 1000 ? "none" : relIngredient[id];
             return `
                 <td>
-                    <span data-name="${id}" class="ingredient">${name} ${isle(id)}</span>
+                    <span data-name="${id}" class="ingredient">${name}&thinsp;${isle(id)}</span>
                     ${ingredientOptions(id)}
                 </td>
             `;
@@ -589,31 +528,60 @@ function refreshResults(rebuildMatches) {
 
 }
 
-    // Keydown listener
-    // if (!refreshResults.listenerAdded) {
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'PageDown' || event.key === 'PageUp' || event.key === 'Home' || event.key === 'End') {
-                event.preventDefault(); // Prevent page scrolling
-            }
-            if (event.key === 'PageDown' && offset + maxResults < filteredMatches.length) {
-                offset += maxResults;
-                console.log(offset + maxResults,filteredMatches.length,(offset + maxResults) < filteredMatches.length);
-                refreshResults(false);
-            } else if (event.key === 'PageUp' && offset > 0) {
-                offset -= maxResults;
-                offset = Math.max(0, offset);
-                refreshResults(false);
-            } else if (event.key === 'Home' && offset > 0) {
-                offset = 0;
-                refreshResults(false);
-            } else if (event.key === 'End' && offset < filteredMatches.length - maxResults) {
-                offset = filteredMatches.length - maxResults;
-                // offset = Math.max(0, offset);
-                refreshResults(false);
-            }
-        });
-        refreshResults.listenerAdded = true;
-    // }
+function calcPurity(effectIds){
+    if(effectIds.every(e => effects[e][2] === 1)) return 1;
+    if(effectIds.every(e => effects[e][2] === 0)) return 2;
+    return 0;
+}
+
+function filterPreGeneratedRecipes(alchemySkill, recipeSize) {
+    return preGeneratedRecipes[recipeSize]
+        .filter(pregen => alchemySkill >= pregen[2]
+    ).map(([ingredients, effectIds, skill, purity, value]) => { 
+        const usableEffects = getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill);
+        purity = calcPurity(usableEffects);
+        value[1] = usableEffects.length;
+        return [ingredients, usableEffects, skill, purity, value];
+    });
+}
+
+function getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill) {
+    return effectIds.filter(effectId => 
+        ingredients.every(ingredientId => {
+            const effects = allIngredients[ingredientId]?.[1] || [];
+            const effectIndex = effects.indexOf(effectId);
+            if (effectIndex === -1) return false;
+            if (effectIndex === 0) return true;
+            if (effectIndex === 1 && alchemySkill < 25) return false;
+            if (effectIndex === 2 && alchemySkill < 50) return false;
+            if (effectIndex === 3 && alchemySkill < 75) return false;
+            return true;
+        })
+    );
+}
+
+// Keydown listener
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'PageDown' || event.key === 'PageUp' || event.key === 'Home' || event.key === 'End') {
+        event.preventDefault(); // Prevent page scrolling
+    }
+    if (event.key === 'PageDown' && offset + maxResults < filteredMatches.length) {
+        offset += maxResults;
+        console.log(offset + maxResults,filteredMatches.length,(offset + maxResults) < filteredMatches.length);
+        refreshResults(false);
+    } else if (event.key === 'PageUp' && offset > 0) {
+        offset -= maxResults;
+        offset = Math.max(0, offset);
+        refreshResults(false);
+    } else if (event.key === 'Home' && offset > 0) {
+        offset = 0;
+        refreshResults(false);
+    } else if (event.key === 'End' && offset < filteredMatches.length - maxResults) {
+        offset = filteredMatches.length - maxResults;
+        // offset = Math.max(0, offset);
+        refreshResults(false);
+    }
+});
 
 function addHoverEffects() {
     $(".effect").tooltip({
@@ -639,10 +607,6 @@ function addHoverEffects() {
 
 function findMatches(alchemySkill, recipeSize) {
     const result = [];
-    // if (recipeSize < 2 || recipeSize > 4) {
-    //     console.warn("Invalid recipeSize:", recipeSize, "must be 2, 3, or 4");
-    //     return [];
-    // }
     if (have.length < recipeSize) {
         console.warn("Not enough ingredients for recipe size", recipeSize, "have:", have.length);
         return [];
@@ -661,19 +625,53 @@ function findMatches(alchemySkill, recipeSize) {
     // Helper to get unique effects from pairwise intersections
     function getPairwiseEffects(ingredientIds, effectArrays) {
         const effects = new Set();
-        // Check all pairs of ingredients
         for (let i = 0; i < ingredientIds.length - 1; i++) {
             for (let j = i + 1; j < ingredientIds.length; j++) {
                 const pairEffects = intersect(effectArrays[i], effectArrays[j]);
                 for (const effectId of pairEffects) {
-                    // Verify effect is usable for this pair
                     if (canUseEffect(effectId, alchemySkill, ingredientIds[i], ingredientIds[j])) {
                         effects.add(effectId);
                     }
                 }
             }
         }
-        return [...effects];
+        return [...effects].sort((a, b) => a - b); // Sort for consistent comparison
+    }
+
+    // Helper to check if a recipe's effects are redundant (i.e., a subset produces the same effects)
+    function isRedundantRecipe(ingredientIds, recipeEffects) {
+        // For each subset of ingredients of size 2 to recipeSize-1
+        for (let subsetSize = 2; subsetSize < ingredientIds.length; subsetSize++) {
+            const subsets = getCombinations(ingredientIds, subsetSize);
+            for (const subset of subsets) {
+                const subsetEffectArrays = subset.map(id => getUsableEffects(id, alchemySkill));
+                const subsetEffects = getPairwiseEffects(subset, subsetEffectArrays);
+                // If the subset produces the same effects as the full recipe, it's redundant
+                if (subsetEffects.length === recipeEffects.length && 
+                    subsetEffects.every((e, i) => e === recipeEffects[i])) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // Helper to generate combinations of ingredients
+    function getCombinations(arr, size) {
+        const result = [];
+        function combine(start, current) {
+            if (current.length === size) {
+                result.push([...current]);
+                return;
+            }
+            for (let i = start; i < arr.length; i++) {
+                current.push(arr[i]);
+                combine(i + 1, current);
+                current.pop();
+            }
+        }
+        combine(0, []);
+        return result;
     }
 
     for (let i = 0; i < have.length - 1; i++) {
@@ -684,15 +682,12 @@ function findMatches(alchemySkill, recipeSize) {
             const i1 = have[j];
             if (!allIngredients[i1]) continue;
             const e1 = getUsableEffects(i1, alchemySkill);
-            const commonEffects = intersect(e0, e1).filter(effectId => canUseEffect(effectId, alchemySkill, i0, i1));
+            const commonEffects = intersect(e0, e1).filter(effectId => 
+                canUseEffect(effectId, alchemySkill, i0, i1));
 
-            dbg&1 && console.log("2-ingredient pair:", relIngredient[i0], "+", relIngredient[i1], "effects:", commonEffects.map(id => relEffect[id]));
-
-            if (commonEffects.length > 0) { // && recipeSize === 2) {
+            if (commonEffects.length > 0 && recipeSize === 2) {
                 const value = worth(commonEffects, [i0, i1]);
-                // if (typeof value === 'number' && !isNaN(value)) {
-                    result.push([[i0, i1], commonEffects, value]);
-                // }
+                result.push([[i0, i1], commonEffects, value]);
             }
 
             if (recipeSize >= 3 && have.length >= 3) {
@@ -701,13 +696,13 @@ function findMatches(alchemySkill, recipeSize) {
                     if (!allIngredients[i2]) continue;
                     const e2 = getUsableEffects(i2, alchemySkill);
                     const threeEffects = getPairwiseEffects([i0, i1, i2], [e0, e1, e2]);
-                    dbg&1 && console.log("3-ingredient set:", relIngredient[i0], "+", relIngredient[i1], "+", relIngredient[i2], "effects:", threeEffects.map(id => relEffect[id]));
 
-                    if (threeEffects.length > 0) { // && recipeSize === 3) {
-                        const value = worth(threeEffects, [i0, i1, i2]);
-                        // if (typeof value === 'number' && !isNaN(value)) {
+                    if (threeEffects.length > 0 && recipeSize === 3) {
+                        // Only include if not redundant
+                        if (!isRedundantRecipe([i0, i1, i2], threeEffects)) {
+                            const value = worth(threeEffects, [i0, i1, i2]);
                             result.push([[i0, i1, i2], threeEffects, value]);
-                        // }
+                        }
                     }
 
                     if (recipeSize === 4 && have.length >= 4) {
@@ -716,13 +711,10 @@ function findMatches(alchemySkill, recipeSize) {
                             if (!allIngredients[i3]) continue;
                             const e3 = getUsableEffects(i3, alchemySkill);
                             const fourEffects = getPairwiseEffects([i0, i1, i2, i3], [e0, e1, e2, e3]);
-                            dbg&1 && console.log("4-ingredient set:", relIngredient[i0], "+", relIngredient[i1], "+", relIngredient[i2], "+", relIngredient[i3], "effects:", fourEffects.map(id => relEffect[id]));
 
-                            if (fourEffects.length > 0) {
+                            if (fourEffects.length > 0 && !isRedundantRecipe([i0, i1, i2, i3], fourEffects)) {
                                 const value = worth(fourEffects, [i0, i1, i2, i3]);
-                                // if (typeof value === 'number' && !isNaN(value)) {
-                                    result.push([[i0, i1, i2, i3], fourEffects, value]);
-                                // }
+                                result.push([[i0, i1, i2, i3], fourEffects, value]);
                             }
                         }
                     }
@@ -770,12 +762,12 @@ function add() {
     if (index === -1 || have.includes(index)) return;
     removeRare(index);
     have.push(index);
-    refresh(true);
+    refresh(2);
     $("#autocomplete").val("");
 }
 
 function addAll() {
-    // have = allIngredients.map((_, i) => i);
+    have = allIngredients.map((_, i) => i);
     // deleteRare();
     refresh(true);
 }
@@ -812,10 +804,10 @@ function removeRare(id) {
     exclude = exclude.filter(e => e !== id);
 }
 
-function deleteRare() {
+function deleteRare(freq, si) {
     exclude = [];
-    const freq = parseInt($('input[name="freq"]:checked').val(), 10);
-    const si = $("#si").prop("checked");
+    // const freq = parseInt($('input[name="freq"]:checked').val(), 10);
+    // const si = $("#asc").prop("checked");
 
     allIngredients.forEach((ingredient, index) => {
         if ((!si && ingredient[3] === 1) || ingredient[2] <= freq) {
@@ -849,5 +841,53 @@ function excludeIngredients() {
 }
 
 function upperFirst(str) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
+    return str; // .charAt(0).toUpperCase() + str.slice(1);
 }
+
+function dump() {
+    results = [];
+    // const [ingredients, effectIds, skill, purity, value] = matches[i];
+    for (const [ingredients, effectIds, skill, purity, value] of filteredMatches) {
+    //  if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
+            results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
+            for (const id of ingredients) {
+                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
+            }
+            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
+            results.push(' ');
+    //  }
+    }
+    console.log(results.join('\n'));
+}
+
+function analyze(){
+    results = [];
+    for (const [ingredients, effectIds, skill, purity, value] of matches) {
+        if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
+            results.push(JSON.stringify([ingredients, effectIds, value]));
+            for (const id of ingredients) {
+                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
+            }
+            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
+            results.push(' ');
+        }
+    }
+    console.log(results.join('\n'));
+}
+
+function single(i){
+    results = [];
+    const [ingredients, effectIds, skill, purity, value] = matches[i];
+    // for (const [ingredients, effectIds, value] of matches) {
+    //     if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
+            results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
+            for (const id of ingredients) {
+                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
+            }
+            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
+            results.push(' ');
+    //     }
+    // }
+    console.log(results.join('\n'));
+}
+
