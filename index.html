@@ -52,11 +52,11 @@
                 </td><td rowspan="4" class="more">
                 <fieldset>
                     <legend>Sort by</legend>
-                    <label><input type="radio" name="sort" id="s1" value="0"> Freq</label><br>
-                    <label><input type="radio" name="sort" id="s2" value="1"> Eff</label><br>
-                    <label><input type="radio" name="sort" id="s3" value="2" checked> None</label><br>
-                    <label><input type="checkbox" id="s0"> Asc</label>
-                </fieldset> <!--  style="font-variant: normal;color: black;" -->
+                    <label><input type="radio" name="sort" value="2"> Freq</label><br>
+                    <label><input type="radio" name="sort" value="1"> Eff</label><br>
+                    <label><input type="radio" name="sort" value="0" checked> None</label><br>
+                    <label><input type="checkbox" id="asc"> Asc</label>
+                </fieldset>
                 <div class="help">
                     <hr style="width:75%;">Home<br>PgUp<br>PgDn<br>End
                     <hr style="width:75%;"><sup>†</sup> Builds<br>matches<div>
@@ -73,7 +73,7 @@
                 </td><td>
                 <fieldset>
                     <legend>Extra Ingredients<sup>&thinsp;†</sup></legend>
-                    <label><input type="checkbox" id="si"> Shivering Isles</label>
+                    <label><input type="checkbox" id="si" checked> Shivering Isles</label>
                 </fieldset>
                 </td><td class="more">
                 <fieldset>
@@ -89,18 +89,18 @@
                 </td></tr><tr><td>
                 <fieldset>
                     <legend>Alchemy Skill Level<sup>&thinsp;†</sup></legend>
-                    <label><input type="radio" name="alch" id="a1" value="0"> 0</label>
-                    <label><input type="radio" name="alch" id="a2" value="25"> 25</label>
-                    <label><input type="radio" name="alch" id="a3" value="50"> 50</label>
-                    <label><input type="radio" name="alch" id="a4" value="75" checked> 75</label>
+                    <label><input type="radio" name="alch" value="0"> 0</label>
+                    <label><input type="radio" name="alch" value="25"> 25</label>
+                    <label><input type="radio" name="alch" value="50"> 50</label>
+                    <label><input type="radio" name="alch" value="75" checked> 75</label>
                 </fieldset>
                 </td><td>
                 <fieldset>
                     <legend>Exclude Frequency<sup>&thinsp;†</sup></legend>
-                    <label><input type="radio" name="freq" id="f1" value="1"> 1</label>
-                    <label><input type="radio" name="freq" id="f2" value="2"> 2</label>
-                    <label><input type="radio" name="freq" id="f3" value="3" checked> 3</label>
-                    <label><input type="radio" name="freq" id="f4" value="4"> 4</label>
+                    <label><input type="radio" name="freq" value="1" checked> 1</label>
+                    <label><input type="radio" name="freq" value="2"> 2</label>
+                    <label><input type="radio" name="freq" value="3"> 3</label>
+                    <label><input type="radio" name="freq" value="4"> 4</label>
                 </fieldset>
                 </td><td class="more">
                 <fieldset>
@@ -116,10 +116,10 @@
                 </td></tr><tr><td colspan="2">
                 <fieldset>
                     <legend>Potion Type</legend>
-                    <label><input type="radio" name="pure" id="any" checked> Any</label>
-                    <label><input type="radio" name="pure" id="pure"> Pure</label>
-                    <label><input type="radio" name="pure" id="positive"> Pure Positive</label>
-                    <label><input type="radio" name="pure" id="negative"> Pure Negative</label>
+                    <label><input type="radio" name="pure" value="0" checked> Any</label>
+                    <label><input type="radio" name="pure" value="3"> Pure</label>
+                    <label><input type="radio" name="pure" value="1"> Pure Positive</label>
+                    <label><input type="radio" name="pure" value="2"> Pure Negative</label>
                 </fieldset>                         
                 </td><td class="more">
                 <fieldset>
@@ -134,11 +134,12 @@
                 </fieldset>
                 </td></tr></table>
             </form>
-            <div id="results"></div>
+            <div id="results"><br><b>...Loading recipes. Please wait.</b></div>
         </main>
     </div>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="i/oblivion.js"></script>
 </body>
 </html>
