@@ -4,9 +4,10 @@
 function getCallerLineNumber() {
     const err = new Error();
     const stack = err.stack.split('\n');
-    let callerLine = stack[3] ? stack[3].match(/:(\d+):/) : null;
-    callerLine = callerLine ? callerLine[1] : '';
-    const callerName = stack[3] ? stack[3].split(/\s+/)[2] : '';
+    // let callerLine = stack[3] ? stack[3].match(/:(\d+):/) : null;
+    // callerLine = callerLine ? callerLine[1] : '';
+    // const callerName = stack[3] ? stack[3].split(/\s+/)[2] : '';
+    return (err.stack.split('\n'))[3].split('at ')[1];
     return stack[3].split('at ')[1];
 }
 
@@ -401,7 +402,7 @@ function refreshResults(rebuildMatches) {
 
     // Rest of the function remains the same
     const type = parseInt($('input[name="sort"]:checked').val(), 10) || 0;
-    console.log('type=',type);
+    // console.log('type=',type);
     if ($('#asc').prop('checked')) {
         matches.sort((a, b) => a[4][type] - b[4][type] || a[4][3].localeCompare(b[4][3]));
     } else {
@@ -536,13 +537,13 @@ function calcPurity(effectIds){
 
 function filterPreGeneratedRecipes(alchemySkill, recipeSize) {
     return preGeneratedRecipes[recipeSize]
-        .filter(pregen => alchemySkill >= pregen[2]
-    ).map(([ingredients, effectIds, skill, purity, value]) => { 
-        const usableEffects = getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill);
-        purity = calcPurity(usableEffects);
-        value[1] = usableEffects.length;
-        return [ingredients, usableEffects, skill, purity, value];
-    });
+        .filter(pregen => pregen[2] <= alchemySkill)
+        .map(([ingredients, effectIds, skill, purity, value]) => { 
+            const usableEffects = getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill);
+            purity = calcPurity(usableEffects);
+            value[1] = usableEffects.length;
+            return [ingredients, usableEffects, skill, purity, value];})
+        .filter(pregen => pregen[1].length);
 }
 
 function getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill) {
