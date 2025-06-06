@@ -1,2 +1,2 @@
 # oblivion
-Oblivion Alchemy Recipe Finder
+Oblivion Alchemy Recipe Finder [here](https://shirha.github.io/oblivion/)
