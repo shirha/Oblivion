@@ -273,7 +273,7 @@ $(document).ready(() => {
         $("#effects").append(`<option value="${index}">${effect[0]}</option>`);
     });
 
-    // buildEffects();
+    buildEffects();
 });
 
 function buildEffects() {
@@ -290,9 +290,10 @@ function buildEffects() {
             at: "right+10 center", // 10px right, vertically centered
             collision: "fit"
         },
-        open: function(event, ui) {
-            ui.tooltip.css("max-width", "300px");
-        }
+        items: "[data-id]"
+        // open: function(event, ui) {
+        //     ui.tooltip.css("max-width", "300px");
+        // }
     });
 }
 
@@ -373,7 +374,7 @@ function addItemFilter(ingredientId, hasIngredient) {
 function refresh(rebuildMatches) {
     console.log(rebuildMatches, getCallerLineNumber());
     if (firstRun) {
-        // $("#listeffects").css("visibility", "visible");
+        $("#listeffects").css("visibility", "visible");
         $("#controls").css("display", "block");
         firstRun = false;
     }
@@ -543,23 +544,42 @@ function filterPreGeneratedRecipes(alchemySkill, recipeSize) {
             purity = calcPurity(usableEffects);
             value[1] = usableEffects.length;
             return [ingredients, usableEffects, skill, purity, value];})
-        .filter(pregen => pregen[1].length);
-}
+        .filter(pregen => pregen[1].length >= 1); // Oblivion allows just 1 effect with 3,4 ingredients
+}                                                 // There are no 1 effect recipes in pregen[3,4]
 
 function getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill) {
-    return effectIds.filter(effectId => 
-        ingredients.every(ingredientId => {
+    return effectIds.filter(effectId => {
+        let validIngredientCount = 0;
+        for (const ingredientId of ingredients) {
             const effects = allIngredients[ingredientId]?.[1] || [];
             const effectIndex = effects.indexOf(effectId);
-            if (effectIndex === -1) return false;
-            if (effectIndex === 0) return true;
-            if (effectIndex === 1 && alchemySkill < 25) return false;
-            if (effectIndex === 2 && alchemySkill < 50) return false;
-            if (effectIndex === 3 && alchemySkill < 75) return false;
-            return true;
-        })
-    );
+            if (effectIndex === -1) continue;
+            if (effectIndex === 0 || 
+                (effectIndex === 1 && alchemySkill >= 25) || 
+                (effectIndex === 2 && alchemySkill >= 50) || 
+                (effectIndex === 3 && alchemySkill >= 75)) {
+                validIngredientCount++;
+            }
+        }
+        return validIngredientCount >= 2;
+    });
 }
+
+// function getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill) {
+//     return effectIds.filter(effectId => 
+//         ingredients.every(ingredientId => {
+//             const effects = allIngredients[ingredientId]?.[1] || [];
+//             const effectIndex = effects.indexOf(effectId);
+//             // console.log(JSON.stringify([ingredientId,effects,effectIndex,alchemySkill]));
+//             if (effectIndex === -1) return false;
+//             if (effectIndex === 0) return true;
+//             if (effectIndex === 1 && alchemySkill < 25) return false;
+//             if (effectIndex === 2 && alchemySkill < 50) return false;
+//             if (effectIndex === 3 && alchemySkill < 75) return false;
+//             return true;
+//         })
+//     );
+// }
 
 // Keydown listener
 document.addEventListener('keydown', (event) => {
@@ -861,23 +881,24 @@ function dump() {
     console.log(results.join('\n'));
 }
 
-function analyze(){
-    results = [];
-    for (const [ingredients, effectIds, skill, purity, value] of matches) {
-        if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
-            results.push(JSON.stringify([ingredients, effectIds, value]));
-            for (const id of ingredients) {
-                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
-            }
-            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
-            results.push(' ');
-        }
-    }
-    console.log(results.join('\n'));
-}
+// function analyze(recipeSize,i){
+//     results = [];
+//     const [ingredients, effectIds, skill, purity, value] = preGeneratedRecipes[recipeSize.toString()][i];
+//     // for (const [ingredients, effectIds, skill, purity, value] of preGeneratedRecipes[recipeSize.toString()]) {
+//         // if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
+//             results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
+//             for (const id of ingredients) {
+//                 results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
+//             }
+//             results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
+//             results.push(' ');
+//         // }
+//     // }
+//     console.log(results.join('\n'));
+// }
 
 function single(i){
-    results = [];
+    results = ['ingredients, effectIds, skill, purity, value'];
     const [ingredients, effectIds, skill, purity, value] = matches[i];
     // for (const [ingredients, effectIds, value] of matches) {
     //     if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
@@ -892,3 +913,42 @@ function single(i){
     console.log(results.join('\n'));
 }
 
+function debug(recipeSize, i, alchemySkill){
+    const [ingredients, effectIds, skill, purity, value] = preGeneratedRecipes[recipeSize.toString()][i]
+    analyze(recipeSize, i);
+    const usableEffects = getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill);
+    console.log(JSON.stringify([effectIds,usableEffects]));
+}
+
+function dumpp(recipeSize,offset) {
+    // let offset = arguments ? arguments[0] : 0;
+    results = [];
+    // const [ingredients, effectIds, skill, purity, value] = matches[i];
+    for (const [ingredients, effectIds, skill, purity, value] of preGeneratedRecipes[recipeSize.toString()].slice(offset,offset+10)) {
+    //  if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
+            results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
+            for (const id of ingredients) {
+                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
+            }
+            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
+            results.push(' ');
+    //  }
+    }
+    console.log(results.join('\n'));
+}
+
+function analyze(recipeSize,i) {
+    results = [];
+    const [ingredientIds, effectIds, skill, purity, value] = preGeneratedRecipes[recipeSize.toString()][i];
+    results.push(JSON.stringify([ingredientIds, effectIds, skill]));
+    ingredientIds.map(id => {
+        results.push(`${id}: ${allIngredients[id][0]}, [${ 
+            allIngredients[id][1].map(i => {
+                return `${i}: ${effects[i][0]}`;
+            }).join(', ')
+        }]`);
+    });
+    results.push('\t[' + effectIds.map(i => `${i}: ${effects[i][0]}`).join(', ') + ']');
+    results.push(`\tskillRequired: ${skill}`);
+    console.log(results.join('\n'));
+}
