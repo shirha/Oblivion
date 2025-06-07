@@ -286,7 +286,6 @@
     h2, h3 { page-break-after: avoid; }
   }
 
-  /*#results{width:900px;}*/
   img{border:0;outline:0;}
   #xyz {    
     border: 1px solid #aaa;
@@ -296,29 +295,28 @@
   }
   #xyz {min-width:725px;}
   #field {border:0;}
-  thead{background-color: #ffeee0;}
+  thead{background-color: #e8f3fd;} /*#ffeee0;}*/
   :focus {outline: 0;}
   body{margin:0 20px;}
-  .check {border:none;}
-  /*table tr:nth-child(even) {background-color: #f0f0f0; }*/
-  /*label {font-weight:bold}*/
+  /*.check {border:none;}*/
   td:nth-child(2) {padding-left: 10px;}
-  /*td:nth-child(3) {padding-left: 20px;}*/
   .more {padding-left: 20px !important;}
   input, select {border:1px solid #aaa;font-size:15px;background-color:#fefefe;padding:4px; }
-  .ui-button {font-size: 13px; }
-  #left{float:left; /*margin-right:20px; width:300px;*/}
-  #right{float:left; margin-left: 20px; }
-  /*#wrapper{padding-left:50px;width:1250px;margin: 0 auto; }*/
+  .ui-button {font-size: 14px; }
+  #left{display: table-cell; min-width:285px;}
+  #right{display: table-cell; padding-left: 20px; }
   #listeffects, #controls {display: none;}
   h4 {margin-top: 0;}
-  form {width:705px; border: 1px solid #aaa; background-color: #efefef; padding:10px; margin-top: 10px;}
-  /*hr {width: 90px; margin: 1px 0; /* auto; }*/*/
+  form {width:710px; border: 1px solid #aaa; background-color: #efefef; padding:10px; margin-top: 10px;}
   .ingredient, .effect {white-space: nowrap !important;}
   th {padding: 2px 6px;}
-  sup {/*font-size: 9px;*/ font-variant: small-caps; color: #9900cc;}
-  .help {font-size: 12px; font-variant: small-caps; color: #9900cc; line-height:16px;}
+  sup {font-variant: small-caps; color: #0f5ca3;} /*#9900cc;}*/
   a {text-decoration: none;}
+  hr {margin: 8px 0;}
+  .help hr {margin: 2px 0; width: 75%;}
+  .help {font-size: 14px; color: #0f5ca3; font-variant: small-caps;}
+  /*#save {float:right; color:222;}*/
+  #left, #right {display: table-cell;}
 
 .ingredients button, #results td button {
     background: none;

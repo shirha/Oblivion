@@ -21,7 +21,7 @@ let preGeneratedRecipes = {};
 let firstRun = true;
 let filters = [];
 let matches = [];
-let newMatches = [];
+let newMatches = [], filteredNewMatches = [];
 let have = [];
 let exclude = [];
 
@@ -247,19 +247,17 @@ $(document).ready(() => {
     fetch('i/recipes.json.gz')
         .then(response => {
             if (!response.ok) throw new Error('Network response was not ok');
-            return response.arrayBuffer(); // Get raw binary data
+            return response.arrayBuffer();
         })
         .then(buffer => {
-            // Decompress gzip
             const decompressed = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
-            const data = JSON.parse(decompressed); // Parse JSON
-            preGeneratedRecipes = data;
-            $("#results").html("")
+            preGeneratedRecipes = JSON.parse(decompressed);
+            $("#results").html("");
+            have = allIngredients.map((_, i) => i).filter(i => !exclude.includes(i));
+            refresh(true);
             console.log('gz=', Object.keys(preGeneratedRecipes).length);
         })
-        .catch(error => {
-            console.error('Fetch failed:', error);
-        });
+        .catch(error => console.error('Fetch failed:', error));
 
     $("#autocomplete").autocomplete({
         source: relIngredient,
@@ -269,13 +267,31 @@ $(document).ready(() => {
 
     $('input[name="recipeSize"], input[name="alch"], input[name="freq"], #si').change(() => refresh(true));
     $('input[name="pure"], input[name="sort"], #asc').change(() => refresh(false));
-    $(":button").button(); // Ensure button widget is applied (tooltips)
+    $(":button").button();
 
     effects.forEach((effect, index) => {
         $("#effects").append(`<option value="${index}">${effect[0]}</option>`);
     });
 
-    buildEffects();
+    // buildEffects();
+
+    // Event delegation for buttons
+    $(document).on('click', '.remove-ingredient', function() {
+        const id = parseInt($(this).data('id'), 10);
+        if (!isNaN(id)) removeItem(id);
+    });
+    $(document).on('click', '.add-filter-include', function() {
+        const id = parseInt($(this).data('id'), 10);
+        if (!isNaN(id)) addItemFilter(id, true);
+    });
+    $(document).on('click', '.add-filter-exclude', function() {
+        const id = parseInt($(this).data('id'), 10);
+        if (!isNaN(id)) addItemFilter(id, false);
+    });
+    $(document).on('click', '.add-ingredient', function() {
+        const id = parseInt($(this).data('id'), 10);
+        if (!isNaN(id)) addItem(id);
+    });
 });
 
 function buildEffects() {
@@ -300,7 +316,6 @@ function buildEffects() {
 }
 
 function hoverEffect() {
-  // Use native dataset instead of jQuery
   const effectId = Number(this.dataset.id);
   if (!Number.isInteger(effectId)) {
     console.warn('Invalid effectId:', this.dataset.id);
@@ -347,9 +362,9 @@ function ingredientOptions(id) {
     if (id === undefined || id === 1000) return "";
     return `
         <br/>
-        <button onclick="removeHave(${id}); removeItem(${id});"><img src="${deleteIcon}"/></button>
-        <button onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></button>
-        <button onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></button>
+        <button class="remove-ingredient" data-id="${id}"><img src="${deleteIcon}"/></button>
+        <button class="add-filter-include" data-id="${id}"><img src="${scriptAddIcon}"/></button>
+        <button class="add-filter-exclude" data-id="${id}"><img src="${scriptDeleteIcon}"/></button>
     `;
 }
 
@@ -382,7 +397,6 @@ function refresh(rebuildMatches) {
         firstRun = false;
     }
     $("#results").html("");
-    $("#warn").html("Generating recipes, please wait...<br/><br/>");
     setTimeout(() => refreshResults(rebuildMatches), 20);
 }
 
@@ -393,26 +407,23 @@ function refreshResults(rebuildMatches) {
     const pure = parseInt($('input[name="pure"]:checked').val(), 10) || 0;
     const freq = parseInt($('input[name="freq"]:checked').val(), 10);
     const si = $("#si").prop("checked");
-
     const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10) || 2;
     const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 0;
     maxResults = parseInt($("#max_results").val() || 100, 10);
-
-    if (rebuildMatches) { // typeof rebuildMatches === 'boolean' && rebuildMatches === true) {
-        deleteRare(freq, si);
+    if (rebuildMatches) {
+        deleteRare(freq, si, true);
         offset = 0;
         matches = filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si);
+    // } else {
+    //     deleteRare(freq, si, false);
     }
-
-    // Rest of the function remains the same
+    syncMatches();
     const type = parseInt($('input[name="sort"]:checked').val(), 10) || 0;
-    // console.log('type=',type);
     if ($('#asc').prop('checked')) {
         matches.sort((a, b) => a[4][type] - b[4][type] || a[4][3].localeCompare(b[4][3]));
     } else {
         matches.sort((a, b) => b[4][type] - a[4][type] || a[4][3].localeCompare(b[4][3]));
     }
-
     have.sort((a, b) => a - b);
     const ingredientsHtml = `
         <div id="ingredients" class="ingredients">
@@ -423,10 +434,10 @@ function refreshResults(rebuildMatches) {
                 <img src="${scriptDeleteIcon}"/> = Exclude recipes with this ingredient
             </p>
             <hr>
-            ${have.map((id, index) => `
-                <button onclick="have.splice(${index}, 1); removeItem(${id});"><img src="${deleteIcon}"/></button>
-                <button onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></button>
-                <button onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></button>
+            ${have.map(id => `
+                <button class="remove-ingredient" data-id="${id}"><img src="${deleteIcon}"/></button>
+                <button class="add-filter-include" data-id="${id}"><img src="${scriptAddIcon}"/></button>
+                <button class="add-filter-exclude" data-id="${id}"><img src="${scriptDeleteIcon}"/></button>
                 <span class="ingredient" data-name="${id}">${relIngredient[id]} ${isle(id)}</span><br/>
             `).join('')}
             ${excludeIngredients()}
@@ -435,42 +446,30 @@ function refreshResults(rebuildMatches) {
     $("#added").html(ingredientsHtml);
     $("#ingredients .ingredient").tooltip({
         content: hoverIngredients,
-        position: {
-            my: "left center",
-            at: "right+10 center",
-            collision: "fit"
-        },
+        position: { my: "left center", at: "right+10 center", collision: "fit" },
         items: "[data-name]"
     });
-
     if (have.length === 0) {
         $("#results").html("<br/>No ingredients selected.");
-        $("#warn").html("");
         return;
     }
-
     if (matches.length === 0) {
         $("#results").html("<br/>No recipes found. Add more ingredients or adjust filters.");
-        $("#warn").html("");
         return;
     }
-
-    // Apply filters and affinity checks to get filtered matches
     filteredMatches = matches.filter(([ingredients, effectIds, skill, purity, value]) => {
         if (filters.length > 0 && filter(filters, effectIds, ingredients)) return false;
-        // if (ingredients.some(i => allIngredients[i][2] <= freq)) return false;
-        // if (ingredients.some(i => allIngredients[i][3]) && !si) return false;
-        if (!(pure === 0 || pure === purity || pure&purity)) return false; // purity
+        if (!(pure === 0 || pure === purity || pure & purity)) return false;
+        if (!ingredients.some(id => have.includes(id))) return false;
+        if (ingredients.some(id => exclude.includes(id))) return false;
         return true;
     });
-    console.log('filteredMatches=',filteredMatches.length);
-
+    console.log('matches=', matches.length, 'filteredMatches=', filteredMatches.length);
     const filterHtml = filters.length > 0
         ? `${filters.map((f, i) => `
             <a href="#" onclick="removeFilter(${i});"><img src="${deleteIcon}"/></a> ${f[0]}
         `).join(", ")}<br/>`
         : "";
-
     let resultHtml = `
         <br/>${filterHtml}
         <table id="xyz" cellpadding="3" cellspacing="0" border="1">
@@ -486,9 +485,7 @@ function refreshResults(rebuildMatches) {
             </thead>
             <tbody>
     `;
-
     let count = 0;
-    // Paginate filtered matches
     for (const [ingredients, effectIds, skill, purity, value] of filteredMatches.slice(offset, offset + maxResults)) {
         count++;
         const ingredientCells = [0, 1, 2, 3].map(i => {
@@ -496,12 +493,11 @@ function refreshResults(rebuildMatches) {
             const name = id === 1000 ? "none" : relIngredient[id];
             return `
                 <td>
-                    <span data-name="${id}" class="ingredient">${name}&thinsp;${isle(id)}</span>
+                    <span data-name="${id}" class="ingredient">${name} ${isle(id)}</span>
                     ${ingredientOptions(id)}
                 </td>
             `;
         }).join('');
-
         const effectsHtml = effectIds.map(id => {
             const effect = effects[id];
             return `
@@ -510,7 +506,6 @@ function refreshResults(rebuildMatches) {
                 </span><br/>
             `;
         }).join('');
-
         resultHtml += `
             <tr>
                 <td>${value[type]}</td>
@@ -519,7 +514,6 @@ function refreshResults(rebuildMatches) {
             </tr>
         `;
     }
-
     resultHtml += `
         </tbody>
         </table>
@@ -527,10 +521,8 @@ function refreshResults(rebuildMatches) {
         <br/><br/>
     `;
     $("#results").html(resultHtml);
-    $("#warn").html("");
     console.log('have: ', have.length, 'exclude: ', exclude.length);
     setTimeout(addHoverEffects, 100);
-
 }
 
 function calcPurity(effectIds){
@@ -646,6 +638,15 @@ function filter(filterList, effectIds, ingredients) {
     return filterList.some(([_, fn]) => fn(effectIds, ingredients));
 }
 
+function syncMatches() {
+    matches = matches.filter(([ingredients]) => {
+        if (!ingredients.some(id => have.includes(id))) return false;
+        if (ingredients.some(id => exclude.includes(id))) return false;
+        return true;
+    });
+    if (dbg & 2) console.log(`syncMatches: matches=${matches.length}, have=${have.length}, exclude=${exclude.length}`);
+}
+
 function add() {
     const value = $("#autocomplete").val().toLowerCase();
     const index = relIngredient.findIndex(ing => ing.toLowerCase() === value);
@@ -657,86 +658,71 @@ function add() {
 }
 
 function addAll() {
-    have = allIngredients.map((_, i) => i);
-    // deleteRare();
+    const freq = parseInt($('input[name="freq"]:checked').val(), 10) || 0;
+    const si = $("#si").prop("checked");
+    deleteRare(freq, si, false);
+    have = allIngredients.map((_, i) => i).filter(i => !exclude.includes(i));
     refresh(true);
 }
 
-function addItemOLD(id, element) {
+function addItem(id, element) {
     if (dbg & 2) console.log('addItem', id);
     if (!have.includes(id)) {
         console.log(`addItem(): ${id} ${relIngredient[id]}`);
         have.push(id);
         removeRare(id);
-
-        const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10);
-        newMatches = preGeneratedRecipes[recipeSize]
-            .filter(recipe => recipe[0].includes(id));
-        matches = matches.concat(newMatches);
-
-        offset = 0;
-        refresh(false);
-    }
-}
-
-function addItem(id, element) { // fixed by Grok
-    if (dbg & 2) console.log('addItem', id);
-    if (!have.includes(id)) {
-        console.log(`addItem(): ${id} ${relIngredient[id]}`);
-        have.push(id);
-        removeRare(id);
-
         const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10) || 2;
         const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 0;
         const freq = parseInt($('input[name="freq"]:checked').val(), 10) || 0;
         const si = $("#si").prop("checked");
-
-        // Get new recipes containing the ingredient, respecting all filters
-        newMatches = filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si)
-            .filter(recipe => recipe[0].includes(id));
-
-        // Merge with existing matches, avoiding duplicates
-        const matchSet = new Set(matches.map(m => JSON.stringify(m[0]))); // Use ingredient IDs as key
-        matches = matches.concat(
-            newMatches.filter(m => !matchSet.has(JSON.stringify(m[0])))
-        );
-
+        const matchSet = new Set(matches.map(m => JSON.stringify(m[0])));
+    //  newMatches = filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si)
+        newMatches = filterPreGeneratedRecipes(75, recipeSize, 1, 1)
+            .filter(recipe => recipe[0].includes(id) && !recipe[0].some(i => exclude.includes(i)));
+        const newMatchesLength = newMatches.length;
+        newMatches = newMatches.filter(m => !matchSet.has(JSON.stringify(m[0])));
+        matches = matches.concat(newMatches);
+        console.log('newMatches=',newMatchesLength,'filteredNewMatches=',newMatches.length);
+        syncMatches();
         offset = 0;
         refresh(false);
     }
 }
 
 function removeItem(id) {
-    dbg&2 && console.log('removeItem', id)
+    if (dbg & 2) console.log('removeItem', id);
     console.log(`removeItem(): ${id} ${relIngredient[id]}`);
-    exclude.push(id);
-    matches = matches.filter(match => match && !match[0].includes(id));
-
+    have = have.filter(h => h !== id);
+    if (!exclude.includes(id)) exclude.push(id);
+    syncMatches();
     offset = 0;
     refresh(false);
 }
 
-function removeHave(id) {
-    have = have.filter(h => h !== id);
-}
+// function removeHave(id) {
+//     have = have.filter(h => h !== id);
+//     syncMatches();
+//     refresh(false);
+// }
 
 function removeRare(id) {
     exclude = exclude.filter(e => e !== id);
 }
 
-function deleteRare(freq, si) {
+function deleteRare(freq, si, resetHave = false) {
     exclude = [];
     allIngredients.forEach((ingredient, index) => {
         if ((!si && ingredient[3] === 1) || ingredient[2] <= freq) {
             exclude.push(index);
         }
     });
-
-    have = allIngredients
-        .map((_, i) => i)
-        .filter(i => !exclude.includes(i));
-
-    dbg&2 && console.log("deleteRare:", 'freq=', freq, 'si=', si, "have", have.length, "excluded", exclude.length); // exclude.map(id => relIngredient[id]));
+    if (resetHave) {
+        have = allIngredients.map((_, i) => i).filter(i => !exclude.includes(i));
+    } else {
+        have = have.filter(i => !exclude.includes(i));
+    }
+    syncMatches();
+    if (dbg & 1) console.log(`deleteRare: freq=${freq}, si=${si}, have=${have.length}, exclude=${exclude.length}`);
 }
 
 function removeFilter(index){
@@ -751,8 +737,8 @@ function excludeIngredients() {
         <hr>
         <h4>Rare Ingredients Excluded</h4>
         ${exclude.map(id => `
-            <button onclick="addItem(${id}, this);"><img src="${addItemIcon}"/></button>
-            <span class="ingredient" data-name="${id}">${relIngredient[id]}&thinsp;${isle(id)}</span><br/>
+            <button class="add-ingredient" data-id="${id}"><img src="${addItemIcon}"/></button>
+            <span class="ingredient" data-name="${id}">${relIngredient[id]} ${isle(id)}</span><br/>
         `).join('')}
     `;
 }
