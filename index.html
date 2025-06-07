@@ -15,19 +15,12 @@
         <h2>Oblivion Alchemy Recipes Finder</h2>
         <p>Find all possible potion recipes based on your ingredients, sorted by value. Supports Oblivion's skill-based effect restrictions. See <a href="https://en.uesp.net/oblivion/alchemy/alc_calc.php" target="_blank">UESP</a></p>
     </div>
-    <div id="wrapper">
+    <table id="wrapper"><tr><td>
         <aside id="left" role="navigation">
-            <div id="added">&nbsp;</div>
+            <div id="added"></div>
             <div id="listeffects" class="effect-list"></div>
-        </aside>
+        </aside></td><td>
         <main id="right" role="main">
-            <div class="input-group">
-                <label for="autocomplete">Ingredient:</label>
-                <input id="autocomplete" class="ui-corner-all" />
-                <button class="ui-corner-all" onclick="add()">Add</button>
-                <button class="ui-corner-all" onclick="addAll()">Add All Ingredients</button>
-            </div>
-            <div id="warn" class="warning"></div>
             <form id="controls" class="controls">
                 <table id="field"><tr><td colspan=2>
                 <fieldset>
@@ -58,8 +51,8 @@
                     <label><input type="checkbox" id="asc"> Asc</label>
                 </fieldset>
                 <div class="help">
-                    <hr style="width:75%;">Home<br>PgUp<br>PgDn<br>End
-                    <hr style="width:75%;"><sup>†</sup> Builds<br>matches<div>
+                    <hr>Home<br>PgUp<br>PgDn<br>End
+                    <hr><sup>†</sup> Builds<br>matches</div>
                 </td></tr><tr><td>
                 <fieldset>
                     <legend>Effect Filter</legend>
@@ -93,10 +86,12 @@
                     <label><input type="radio" name="alch" value="25"> 25</label>
                     <label><input type="radio" name="alch" value="50"> 50</label>
                     <label><input type="radio" name="alch" value="75" checked> 75</label>
+                    <!--button id="save" class="ui-corner-all" onclick="save()" disabled>Save</button-->
                 </fieldset>
                 </td><td>
                 <fieldset>
                     <legend>Exclude Frequency<sup>&thinsp;†</sup></legend>
+                    <!--label><input type="radio" name="freq" value="5" disabled><span style="color:#b2b2b2;"> C</span></label-->
                     <label><input type="radio" name="freq" value="1" checked> 1</label>
                     <label><input type="radio" name="freq" value="2"> 2</label>
                     <label><input type="radio" name="freq" value="3"> 3</label>
@@ -135,8 +130,7 @@
                 </td></tr></table>
             </form>
             <div id="results"><br><b>...Loading recipes. Please wait.</b></div>
-        </main>
-    </div>
+        </main></td></tr></table>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
