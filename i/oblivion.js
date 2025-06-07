@@ -21,6 +21,7 @@ let preGeneratedRecipes = {};
 let firstRun = true;
 let filters = [];
 let matches = [];
+let newMatches = [];
 let have = [];
 let exclude = [];
 
@@ -259,6 +260,7 @@ $(document).ready(() => {
         .catch(error => {
             console.error('Fetch failed:', error);
         });
+
     $("#autocomplete").autocomplete({
         source: relIngredient,
         delay: 0,
@@ -345,9 +347,9 @@ function ingredientOptions(id) {
     if (id === undefined || id === 1000) return "";
     return `
         <br/>
-        <a href="#" onclick="removeHave(${id}); removeItem(${id});"><img src="${deleteIcon}"/></a>
-        <a href="#" onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></a>
-        <a href="#" onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></a>
+        <button onclick="removeHave(${id}); removeItem(${id});"><img src="${deleteIcon}"/></button>
+        <button onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></button>
+        <button onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></button>
     `;
 }
 
@@ -358,6 +360,7 @@ function addFilter() {
         `${hasEffect ? "Has" : "Does not have"} ${relEffect[effectId]}`,
         (effectIds) => hasEffect !== effectIds.includes(effectId)
     ]);
+    console.log(`addFilter(): ${hasEffect ? "Has" : "Does not have"} ${relEffect[effectId]}`)
     offset = 0;
     refresh(false);
 }
@@ -395,10 +398,10 @@ function refreshResults(rebuildMatches) {
     const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 0;
     maxResults = parseInt($("#max_results").val() || 100, 10);
 
-    if (typeof rebuildMatches === 'boolean' && rebuildMatches === true) {
+    if (rebuildMatches) { // typeof rebuildMatches === 'boolean' && rebuildMatches === true) {
         deleteRare(freq, si);
         offset = 0;
-        matches = filterPreGeneratedRecipes(alchemySkill, recipeSize);
+        matches = filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si);
     }
 
     // Rest of the function remains the same
@@ -419,12 +422,12 @@ function refreshResults(rebuildMatches) {
                 <img src="${scriptAddIcon}"/> = Show recipes with this ingredient<br/>
                 <img src="${scriptDeleteIcon}"/> = Exclude recipes with this ingredient
             </p>
-            <hr/>
+            <hr>
             ${have.map((id, index) => `
-                <a href="#" onclick="have.splice(${index}, 1); removeItem(${id});"><img src="${deleteIcon}"/></a>
-                <a href="#" onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></a>
-                <a href="#" onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></a>
-                <span class="ingredient" data-name="${id}">${upperFirst(relIngredient[id])}&thinsp;${isle(id)}</span><br/>
+                <button onclick="have.splice(${index}, 1); removeItem(${id});"><img src="${deleteIcon}"/></button>
+                <button onclick="addItemFilter(${id}, true);"><img src="${scriptAddIcon}"/></button>
+                <button onclick="addItemFilter(${id}, false);"><img src="${scriptDeleteIcon}"/></button>
+                <span class="ingredient" data-name="${id}">${relIngredient[id]} ${isle(id)}</span><br/>
             `).join('')}
             ${excludeIngredients()}
         </div>
@@ -455,8 +458,8 @@ function refreshResults(rebuildMatches) {
     // Apply filters and affinity checks to get filtered matches
     filteredMatches = matches.filter(([ingredients, effectIds, skill, purity, value]) => {
         if (filters.length > 0 && filter(filters, effectIds, ingredients)) return false;
-        if (ingredients.some(i => allIngredients[i][2] <= freq)) return false;
-        if (ingredients.some(i => allIngredients[i][3]) && !si) return false;
+        // if (ingredients.some(i => allIngredients[i][2] <= freq)) return false;
+        // if (ingredients.some(i => allIngredients[i][3]) && !si) return false;
         if (!(pure === 0 || pure === purity || pure&purity)) return false; // purity
         return true;
     });
@@ -536,9 +539,12 @@ function calcPurity(effectIds){
     return 0;
 }
 
-function filterPreGeneratedRecipes(alchemySkill, recipeSize) {
+function filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si) {
     return preGeneratedRecipes[recipeSize]
-        .filter(pregen => pregen[2] <= alchemySkill)
+        .filter(pregen => pregen[2] <= alchemySkill &&
+                         !pregen[0].some(i =>  allIngredients[i][2] <= freq) &&
+                         (si || pregen[0].every(i => !allIngredients[i]?.[3]))) // Shivering Isles filter
+                   // && (pregen[0].some(i => !allIngredients[i][3] || allIngredients[i][3] && si)))
         .map(([ingredients, effectIds, skill, purity, value]) => { 
             const usableEffects = getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill);
             purity = calcPurity(usableEffects);
@@ -564,22 +570,6 @@ function getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill) {
         return validIngredientCount >= 2;
     });
 }
-
-// function getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill) {
-//     return effectIds.filter(effectId => 
-//         ingredients.every(ingredientId => {
-//             const effects = allIngredients[ingredientId]?.[1] || [];
-//             const effectIndex = effects.indexOf(effectId);
-//             // console.log(JSON.stringify([ingredientId,effects,effectIndex,alchemySkill]));
-//             if (effectIndex === -1) return false;
-//             if (effectIndex === 0) return true;
-//             if (effectIndex === 1 && alchemySkill < 25) return false;
-//             if (effectIndex === 2 && alchemySkill < 50) return false;
-//             if (effectIndex === 3 && alchemySkill < 75) return false;
-//             return true;
-//         })
-//     );
-// }
 
 // Keydown listener
 document.addEventListener('keydown', (event) => {
@@ -626,127 +616,6 @@ function addHoverEffects() {
     });
 }
 
-function findMatches(alchemySkill, recipeSize) {
-    const result = [];
-    if (have.length < recipeSize) {
-        console.warn("Not enough ingredients for recipe size", recipeSize, "have:", have.length);
-        return [];
-    }
-
-    // Helper to get usable effects based on skill
-    function getUsableEffects(ingredientId, skill) {
-        if (!allIngredients[ingredientId]) return [];
-        const effects = allIngredients[ingredientId][1];
-        if (skill < 25) return effects.slice(0, 1); // Novice
-        if (skill < 50) return effects.slice(0, 2); // Apprentice
-        if (skill < 75) return effects.slice(0, 3); // Journeyman
-        return effects; // Expert/Master
-    }
-
-    // Helper to get unique effects from pairwise intersections
-    function getPairwiseEffects(ingredientIds, effectArrays) {
-        const effects = new Set();
-        for (let i = 0; i < ingredientIds.length - 1; i++) {
-            for (let j = i + 1; j < ingredientIds.length; j++) {
-                const pairEffects = intersect(effectArrays[i], effectArrays[j]);
-                for (const effectId of pairEffects) {
-                    if (canUseEffect(effectId, alchemySkill, ingredientIds[i], ingredientIds[j])) {
-                        effects.add(effectId);
-                    }
-                }
-            }
-        }
-        return [...effects].sort((a, b) => a - b); // Sort for consistent comparison
-    }
-
-    // Helper to check if a recipe's effects are redundant (i.e., a subset produces the same effects)
-    function isRedundantRecipe(ingredientIds, recipeEffects) {
-        // For each subset of ingredients of size 2 to recipeSize-1
-        for (let subsetSize = 2; subsetSize < ingredientIds.length; subsetSize++) {
-            const subsets = getCombinations(ingredientIds, subsetSize);
-            for (const subset of subsets) {
-                const subsetEffectArrays = subset.map(id => getUsableEffects(id, alchemySkill));
-                const subsetEffects = getPairwiseEffects(subset, subsetEffectArrays);
-                // If the subset produces the same effects as the full recipe, it's redundant
-                if (subsetEffects.length === recipeEffects.length && 
-                    subsetEffects.every((e, i) => e === recipeEffects[i])) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    // Helper to generate combinations of ingredients
-    function getCombinations(arr, size) {
-        const result = [];
-        function combine(start, current) {
-            if (current.length === size) {
-                result.push([...current]);
-                return;
-            }
-            for (let i = start; i < arr.length; i++) {
-                current.push(arr[i]);
-                combine(i + 1, current);
-                current.pop();
-            }
-        }
-        combine(0, []);
-        return result;
-    }
-
-    for (let i = 0; i < have.length - 1; i++) {
-        const i0 = have[i];
-        if (!allIngredients[i0]) continue;
-        const e0 = getUsableEffects(i0, alchemySkill);
-        for (let j = i + 1; j < have.length; j++) {
-            const i1 = have[j];
-            if (!allIngredients[i1]) continue;
-            const e1 = getUsableEffects(i1, alchemySkill);
-            const commonEffects = intersect(e0, e1).filter(effectId => 
-                canUseEffect(effectId, alchemySkill, i0, i1));
-
-            if (commonEffects.length > 0 && recipeSize === 2) {
-                const value = worth(commonEffects, [i0, i1]);
-                result.push([[i0, i1], commonEffects, value]);
-            }
-
-            if (recipeSize >= 3 && have.length >= 3) {
-                for (let k = j + 1; k < have.length; k++) {
-                    const i2 = have[k];
-                    if (!allIngredients[i2]) continue;
-                    const e2 = getUsableEffects(i2, alchemySkill);
-                    const threeEffects = getPairwiseEffects([i0, i1, i2], [e0, e1, e2]);
-
-                    if (threeEffects.length > 0 && recipeSize === 3) {
-                        // Only include if not redundant
-                        if (!isRedundantRecipe([i0, i1, i2], threeEffects)) {
-                            const value = worth(threeEffects, [i0, i1, i2]);
-                            result.push([[i0, i1, i2], threeEffects, value]);
-                        }
-                    }
-
-                    if (recipeSize === 4 && have.length >= 4) {
-                        for (let m = k + 1; m < have.length; m++) {
-                            const i3 = have[m];
-                            if (!allIngredients[i3]) continue;
-                            const e3 = getUsableEffects(i3, alchemySkill);
-                            const fourEffects = getPairwiseEffects([i0, i1, i2, i3], [e0, e1, e2, e3]);
-
-                            if (fourEffects.length > 0 && !isRedundantRecipe([i0, i1, i2, i3], fourEffects)) {
-                                const value = worth(fourEffects, [i0, i1, i2, i3]);
-                                result.push([[i0, i1, i2, i3], fourEffects, value]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    console.log("findMatches returning", result.length, "recipes");
-    return result;
-}
-
 function canUseEffect(effectId, alchemySkill, ...ingredientIds) {
     // Ensure effect is usable for ALL ingredients
     for (const id of ingredientIds) {
@@ -783,8 +652,8 @@ function add() {
     if (index === -1 || have.includes(index)) return;
     removeRare(index);
     have.push(index);
-    refresh(2);
     $("#autocomplete").val("");
+    refresh(false);
 }
 
 function addAll() {
@@ -793,15 +662,44 @@ function addAll() {
     refresh(true);
 }
 
-function addItem(id) {
-    dbg&2 && console.log('addItem', id)
+function addItemOLD(id, element) {
+    if (dbg & 2) console.log('addItem', id);
     if (!have.includes(id)) {
+        console.log(`addItem(): ${id} ${relIngredient[id]}`);
         have.push(id);
         removeRare(id);
 
         const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10);
-        const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10);
-        matches = findMatches(alchemySkill, recipeSize);
+        newMatches = preGeneratedRecipes[recipeSize]
+            .filter(recipe => recipe[0].includes(id));
+        matches = matches.concat(newMatches);
+
+        offset = 0;
+        refresh(false);
+    }
+}
+
+function addItem(id, element) { // fixed by Grok
+    if (dbg & 2) console.log('addItem', id);
+    if (!have.includes(id)) {
+        console.log(`addItem(): ${id} ${relIngredient[id]}`);
+        have.push(id);
+        removeRare(id);
+
+        const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10) || 2;
+        const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 0;
+        const freq = parseInt($('input[name="freq"]:checked').val(), 10) || 0;
+        const si = $("#si").prop("checked");
+
+        // Get new recipes containing the ingredient, respecting all filters
+        newMatches = filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si)
+            .filter(recipe => recipe[0].includes(id));
+
+        // Merge with existing matches, avoiding duplicates
+        const matchSet = new Set(matches.map(m => JSON.stringify(m[0]))); // Use ingredient IDs as key
+        matches = matches.concat(
+            newMatches.filter(m => !matchSet.has(JSON.stringify(m[0])))
+        );
 
         offset = 0;
         refresh(false);
@@ -810,6 +708,7 @@ function addItem(id) {
 
 function removeItem(id) {
     dbg&2 && console.log('removeItem', id)
+    console.log(`removeItem(): ${id} ${relIngredient[id]}`);
     exclude.push(id);
     matches = matches.filter(match => match && !match[0].includes(id));
 
@@ -827,9 +726,6 @@ function removeRare(id) {
 
 function deleteRare(freq, si) {
     exclude = [];
-    // const freq = parseInt($('input[name="freq"]:checked').val(), 10);
-    // const si = $("#asc").prop("checked");
-
     allIngredients.forEach((ingredient, index) => {
         if ((!si && ingredient[3] === 1) || ingredient[2] <= freq) {
             exclude.push(index);
@@ -852,103 +748,100 @@ function removeFilter(index){
 function excludeIngredients() {
     exclude.sort((a, b) => a - b);
     return `
-        <hr/>
+        <hr>
         <h4>Rare Ingredients Excluded</h4>
         ${exclude.map(id => `
-            <a href="#" onclick="addItem(${id});"><img src="${addItemIcon}"/></a>
-            <span class="ingredient" data-name="${id}">${upperFirst(relIngredient[id])}&thinsp;${isle(id)}</span><br/>
+            <button onclick="addItem(${id}, this);"><img src="${addItemIcon}"/></button>
+            <span class="ingredient" data-name="${id}">${relIngredient[id]}&thinsp;${isle(id)}</span><br/>
         `).join('')}
     `;
 }
 
-function upperFirst(str) {
-    return str; // .charAt(0).toUpperCase() + str.slice(1);
-}
-
-function dump() {
-    results = [];
-    // const [ingredients, effectIds, skill, purity, value] = matches[i];
-    for (const [ingredients, effectIds, skill, purity, value] of filteredMatches) {
-    //  if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
-            results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
-            for (const id of ingredients) {
-                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
-            }
-            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
-            results.push(' ');
-    //  }
-    }
-    console.log(results.join('\n'));
-}
-
-// function analyze(recipeSize,i){
-//     results = [];
-//     const [ingredients, effectIds, skill, purity, value] = preGeneratedRecipes[recipeSize.toString()][i];
-//     // for (const [ingredients, effectIds, skill, purity, value] of preGeneratedRecipes[recipeSize.toString()]) {
-//         // if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
-//             results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
-//             for (const id of ingredients) {
-//                 results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
-//             }
-//             results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
-//             results.push(' ');
-//         // }
-//     // }
-//     console.log(results.join('\n'));
-// }
-
-function single(i){
-    results = ['ingredients, effectIds, skill, purity, value'];
-    const [ingredients, effectIds, skill, purity, value] = matches[i];
-    // for (const [ingredients, effectIds, value] of matches) {
-    //     if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
-            results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
-            for (const id of ingredients) {
-                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
-            }
-            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
-            results.push(' ');
-    //     }
-    // }
-    console.log(results.join('\n'));
-}
+// debug(4,95,75)
+// [[0,37],[0,37]]
 
 function debug(recipeSize, i, alchemySkill){
     const [ingredients, effectIds, skill, purity, value] = preGeneratedRecipes[recipeSize.toString()][i]
-    analyze(recipeSize, i);
+    dump('p', recipeSize, i, 1);
     const usableEffects = getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill);
     console.log(JSON.stringify([effectIds,usableEffects]));
 }
 
-function dumpp(recipeSize,offset) {
-    // let offset = arguments ? arguments[0] : 0;
-    results = [];
-    // const [ingredients, effectIds, skill, purity, value] = matches[i];
-    for (const [ingredients, effectIds, skill, purity, value] of preGeneratedRecipes[recipeSize.toString()].slice(offset,offset+10)) {
-    //  if(effectIds.length === 1 && ingredients.every(i => allIngredients[i][1].includes(effectIds[0]))){
-            results.push(JSON.stringify([ingredients, effectIds, skill, purity, value]));
-            for (const id of ingredients) {
-                results.push([id, allIngredients[id][0], ...allIngredients[id][1].map(i => effects[i][0])].join(', '));
-            }
-            results.push('\t' + effectIds.map(i => relEffect[i]).join(', '));
-            results.push(' ');
-    //  }
+// Example Usage - Valid calls
+// dump('p', 4, 95, 1);     // Dump 1 preGeneratedRecipes, recipeSize 4, index 95
+// dump('f', null, 0, 3);   // Dump 3 filteredMatches starting at 0
+// dump('m', null, 10, 1);  // Dump 1 match at index 10
+
+function dump(db, recipeSize, offset, count) {
+    let results = [];
+    let dataSource;
+
+    if (db === 'p') {
+        if (recipeSize !== 2 && recipeSize !== 3 && recipeSize !== 4) {
+            console.error(`Invalid or missing recipeSize: ${recipeSize}. Must be 2, 3, or 4 for db='p'.`);
+            return;
+        }
+        dataSource = preGeneratedRecipes[recipeSize.toString()];
+        if (!dataSource) {
+            console.error(`No recipes found for recipeSize: ${recipeSize}`);
+            return;
+        }
+    } else if (db === 'f') {
+        dataSource = filteredMatches;
+    } else if (db === 'm') {
+        dataSource = matches;
+    } else {
+        console.error(`Invalid db: ${db}. Use 'p', 'f', or 'm'.`);
+        return;
+    }
+
+    if (!Array.isArray(dataSource)) {
+        console.error(`Data source for db '${db}' is not an array.`);
+        return;
+    }
+
+    offset = parseInt(offset, 10) || 0;
+    count = parseInt(count, 10) || 0;
+    if (count === 0) count = dataSource.length; // - offset
+    const end = Math.min(offset + count, dataSource.length);
+
+    if (offset < 0 || offset >= dataSource.length) {
+        console.error(`Offset ${offset} is out of bounds for db '${db}' (length: ${dataSource.length}).`);
+        return;
+    }
+
+    for (let i = offset; i < end; i++) {
+        if (dataSource[i]) {
+            results.push(formatRecipe(dataSource[i], i, db));
+        } else {
+            console.warn(`No recipe at index ${i} for db '${db}'.`);
+        }
     }
     console.log(results.join('\n'));
 }
 
-function analyze(recipeSize,i) {
-    results = [];
-    const [ingredientIds, effectIds, skill, purity, value] = preGeneratedRecipes[recipeSize.toString()][i];
+function formatRecipe(recipe, index, db) {
+    const results = [];
+    if (!recipe || !Array.isArray(recipe)) {
+        return `Invalid recipe at index ${index} for ${db}`;
+    }
+
+    const [ingredientIds, effectIds, skill, purity, value] = recipe;
     results.push(JSON.stringify([ingredientIds, effectIds, skill]));
-    ingredientIds.map(id => {
-        results.push(`${id}: ${allIngredients[id][0]}, [${ 
-            allIngredients[id][1].map(i => {
-                return `${i}: ${effects[i][0]}`;
-            }).join(', ')
-        }]`);
-    });
-    results.push('\t[' + effectIds.map(i => `${i}: ${effects[i][0]}`).join(', ') + ']');
-    results.push(`\tskillRequired: ${skill}`);
-    console.log(results.join('\n'));
+
+    if (Array.isArray(ingredientIds)) {
+        ingredientIds.forEach(id => {
+            const ingredient = allIngredients[id] || ['Unknown', []];
+            const effectsList = ingredient[1].map(i => `${i}: ${effects[i]?.[0] || 'Unknown'}`).join(', ');
+            results.push(`${id}: ${ingredient[0]}, [${effectsList}]`);
+        });
+    }
+
+    if (Array.isArray(effectIds)) {
+        const effectsList = effectIds.map(i => `${i}: ${effects[i]?.[0] || 'Unknown'}`).join(', ');
+        results.push(`\t[${effectsList}]`);
+    }
+
+    results.push(`\tskillRequired: ${skill || 'Unknown'}\n`);
+    return results.join('\n');
 }

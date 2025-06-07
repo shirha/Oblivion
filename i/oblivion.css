@@ -286,7 +286,7 @@
     h2, h3 { page-break-after: avoid; }
   }
 
-  #results{width:800px;}
+  /*#results{width:900px;}*/
   img{border:0;outline:0;}
   #xyz {    
     border: 1px solid #aaa;
@@ -294,6 +294,7 @@
     font-size: 12pt;
     padding: 4px;
   }
+  #xyz {min-width:725px;}
   #field {border:0;}
   thead{background-color: #ffeee0;}
   :focus {outline: 0;}
@@ -306,17 +307,27 @@
   .more {padding-left: 20px !important;}
   input, select {border:1px solid #aaa;font-size:15px;background-color:#fefefe;padding:4px; }
   .ui-button {font-size: 13px; }
-  #left{float:left;width:300px; }
-  #right{float:left;width:720px; margin-left: 10px; }
+  #left{float:left; /*margin-right:20px; width:300px;*/}
+  #right{float:left; margin-left: 20px; }
   /*#wrapper{padding-left:50px;width:1250px;margin: 0 auto; }*/
   #listeffects, #controls {display: none;}
   h4 {margin-top: 0;}
-  form {border: 1px solid #aaa; background-color: #efefef; padding:10px; margin-top: 10px;}
-  hr {width: 90px; margin: 1px 0; /* auto; */}
-  td {white-space: nowrap;}
+  form {width:705px; border: 1px solid #aaa; background-color: #efefef; padding:10px; margin-top: 10px;}
+  /*hr {width: 90px; margin: 1px 0; /* auto; }*/*/
+  .ingredient, .effect {white-space: nowrap !important;}
   th {padding: 2px 6px;}
   sup {/*font-size: 9px;*/ font-variant: small-caps; color: #9900cc;}
   .help {font-size: 12px; font-variant: small-caps; color: #9900cc; line-height:16px;}
-  #xyz {min-width:720px;}
   a {text-decoration: none;}
 
+.ingredients button, #results td button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-block;
+    vertical-align: middle;
+}
+.ingredients button img, #results td button img {
+    vertical-align: middle;
+}
