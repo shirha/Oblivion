@@ -530,8 +530,8 @@ function refreshResults(rebuildMatches) {
 }
 
 function calcPurity(effectIds){
-    if(effectIds.every(e => effects[e][2] === 1)) return 1;
-    if(effectIds.every(e => effects[e][2] === 0)) return 2;
+    if(effectIds.every(e => effects[e][1] === 0)) return 1;
+    if(effectIds.every(e => effects[e][1] !== 0)) return 2;
     return 0;
 }
 
