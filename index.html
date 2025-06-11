@@ -22,24 +22,24 @@
         </aside></td><td>
         <main id="right" role="main">
             <form id="controls" class="controls">
-                <table id="field"><tr><td colspan=2>
+                <table id="field"><tr><td colspan=3>
                 <fieldset>
                     <legend>Recipe Size<sup>&thinsp;†</sup></legend>
                     <label><input type="radio" name="recipeSize" id="two" value="2" checked> 2</label>
                     <label><input type="radio" name="recipeSize" id="three" value="3"> 3</label>
-                    <label><input type="radio" name="recipeSize" id="four" value="4"> 4 Ingredients</label> | 
-                    <label>Max Recipes: <input id="max_results" class="ui-corner-all" size="3" maxlength="5" value="20"></label>
-                    <button type="button" class="ui-corner-all" onclick="refresh(false)">Update</button>
+                    <label><input type="radio" name="recipeSize" id="four" value="4"> 4 Ingredients</label>
+                    <label class="align-right">Max Recipes: <input id="max_results" class="ui-corner-all" size="3" maxlength="5" value="20">
+                    <button type="button" class="ui-corner-all" onclick="refresh(false)">Update</button></label>
                 </fieldset>
-                </td><td class="more">
+                </td><td class="more"> <!--style="width:120px;"-->
                 <fieldset>
                     <legend>Mortar & Pestle</legend>
-                    <select id="mortar" disabled>
-                    <option value="1">Novice</option>
-                    <option value="2">Apprentice</option>
-                    <option value="3">Journeyman</option>
-                    <option value="4">Expert</option>
-                    <option value="5">Master</option>
+                    <select id="mortar">
+                        <option value="0.1" selected>Novice</option>
+                        <option value="0.25">Apprentice</option>
+                        <option value="0.5">Journeyman</option>
+                        <option value="0.75">Expert</option>
+                        <option value="1.0">Master</option>
                     </select>
                 </fieldset>
                 </td><td rowspan="4" class="more">
@@ -53,7 +53,7 @@
                 <div class="help">
                     <hr>Home<br>PgUp<br>PgDn<br>End
                     <hr><sup>†</sup> Builds<br>matches</div>
-                </td></tr><tr><td>
+                </td></tr><tr><td style="width:328;">
                 <fieldset>
                     <legend>Effect Filter</legend>
                     <select id="filter">
@@ -63,7 +63,7 @@
                     <select id="effects"></select>
                     <button type="button" class="ui-corner-all" onclick="addFilter()">Add Filter</button>
                 </fieldset>
-                </td><td>
+                </td><td colspan="2">
                 <fieldset>
                     <legend>Extra Ingredients<sup>&thinsp;†</sup></legend>
                     <label><input type="checkbox" id="si" checked> Shivering Isles</label>
@@ -71,15 +71,16 @@
                 </td><td class="more">
                 <fieldset>
                     <legend>Retort</legend>
-                    <select id="retort" disabled>
-                    <option value="1">Novice</option>
-                    <option value="2">Apprentice</option>
-                    <option value="3">Journeyman</option>
-                    <option value="4">Expert</option>
-                    <option value="5">Master</option>
+                    <select id="retort">
+                        <option value="0">(None)</option>
+                        <option value="0.1" selected>Novice</option>
+                        <option value="0.25">Apprentice</option>
+                        <option value="0.5">Journeyman</option>
+                        <option value="0.75">Expert</option>
+                        <option value="1.0">Master</option>
                     </select>
                 </fieldset>
-                </td></tr><tr><td>
+                </td></tr><tr><td colspan="1">
                 <fieldset>
                     <legend>Alchemy Skill Level<sup>&thinsp;†</sup></legend>
                     <label><input type="radio" name="alch" value="0"> 0</label>
@@ -88,7 +89,7 @@
                     <label><input type="radio" name="alch" value="75" checked> 75</label>
                     <!--button id="save" class="ui-corner-all" onclick="save()" disabled>Save</button-->
                 </fieldset>
-                </td><td>
+                </td><td colspan="2">
                 <fieldset>
                     <legend>Exclude Frequency<sup>&thinsp;†</sup></legend>
                     <!--label><input type="radio" name="freq" value="5" disabled><span style="color:#b2b2b2;"> C</span></label-->
@@ -100,15 +101,16 @@
                 </td><td class="more">
                 <fieldset>
                     <legend>Alembic</legend>
-                    <select id="alembic" disabled>
-                    <option value="1">Novice</option>
-                    <option value="2">Apprentice</option>
-                    <option value="3">Journeyman</option>
-                    <option value="4">Expert</option>
-                    <option value="5">Master</option>
+                    <select id="alembic">
+                        <option value="0">(None)</option>
+                        <option value="0.1" selected>Novice</option>
+                        <option value="0.25">Apprentice</option>
+                        <option value="0.5">Journeyman</option>
+                        <option value="0.75">Expert</option>
+                        <option value="1.0">Master</option>
                     </select>
                 </fieldset>
-                </td></tr><tr><td colspan="2">
+                </td></tr><tr><td colspan="2"> <!--style="width:355px;"-->
                 <fieldset>
                     <legend>Potion Type</legend>
                     <label><input type="radio" name="pure" value="0" checked> Any</label>
@@ -116,24 +118,31 @@
                     <label><input type="radio" name="pure" value="1"> Pure Positive</label>
                     <label><input type="radio" name="pure" value="2"> Pure Negative</label>
                 </fieldset>                         
+                </td><td style="width:120px;">
+                    <label class="align-right">Skill: <input id="skill" class="ui-corner-all" size="3" maxlength="5" value="75"></label>
+                    <label class="align-right">Luck: <input id="luck" class="ui-corner-all" size="3" maxlength="5" value="50"></label>
                 </td><td class="more">
                 <fieldset>
                     <legend>Cancinator</legend>
-                    <select id="cancinator" disabled>
-                    <option value="1">Novice</option>
-                    <option value="2">Apprentice</option>
-                    <option value="3">Journeyman</option>
-                    <option value="4">Expert</option>
-                    <option value="5">Master</option>
+                    <select id="calcinator">
+                        <option value="0">(None)</option>
+                        <option value="0.1" selected>Novice</option>
+                        <option value="0.25">Apprentice</option>
+                        <option value="0.5">Journeyman</option>
+                        <option value="0.75">Expert</option>
+                        <option value="1.0">Master</option>
                     </select>
-                </fieldset>
+                             </fieldset>
                 </td></tr></table>
             </form>
             <div id="results"><br><b>...Loading recipes. Please wait.</b></div>
         </main></td></tr></table>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!--script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script-->
+    <script src="i/jquery-3.6.0.min.js"></script>
+    <script src="i/jquery-ui-1.13.2.min.js"></script>
+    <script src="i/pako-2.1.0.min.js"></script>
     <script src="i/oblivion.js"></script>
 </body>
 </html>
