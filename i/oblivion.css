@@ -272,7 +272,7 @@
    ========================================================================== */
 
    @media print {
-    * { background: transparent !important; color: black !important; box-shadow:none !important; text-shadow: none !important; filter:none !important; -ms-filter: none !important; } /* Black prints faster: h5bp.com/s */
+    * { background: transparent !important; color: black !important; box-shadow: none !important; text-shadow: none !important; filter: none !important; -ms-filter: none !important; } /* Black prints faster: h5bp.com/s */
     a, a:visited { text-decoration: underline; }
     a[href]:after { content: " (" attr(href) ")"; }
     abbr[title]:after { content: " (" attr(title) ")"; }
@@ -286,37 +286,37 @@
     h2, h3 { page-break-after: avoid; }
   }
 
-  img{border:0;outline:0;}
+  img{border: 0;outline: 0;}
   #xyz {    
     border: 1px solid #aaa;
     color: #000;
     font-size: 12pt;
     padding: 4px;
+    min-width: 725px;
   }
-  #xyz {min-width:725px;}
-  #field {border:0;}
-  thead{background-color: #e8f3fd;} /*#ffeee0;}*/
+  #field {border: 0;}
+  thead {background-color: #e8f3fd;} /*#ffeee0;}*/
   :focus {outline: 0;}
-  body{margin:0 20px;}
-  /*.check {border:none;}*/
+  body {margin: 0 20px;}
   td:nth-child(2) {padding-left: 10px;}
   .more {padding-left: 20px !important;}
-  input, select {border:1px solid #aaa;font-size:15px;background-color:#fefefe;padding:4px; }
-  .ui-button {font-size: 14px; }
-  #left{display: table-cell; min-width:285px;}
-  #right{display: table-cell; padding-left: 20px; }
+  input, select {border: 1px solid #aaa; font-size: 15px; background-color: #fefefe; padding: 4px;}
+  .ui-button {font-size: 14px;}
+  #left {display: table-cell; min-width: 285px;}
+  #right {display: table-cell; padding-left: 20px; }
   #listeffects, #controls {display: none;}
   h4 {margin-top: 0;}
-  form {width:710px; border: 1px solid #aaa; background-color: #efefef; padding:10px; margin-top: 10px;}
-  .ingredient, .effect {white-space: nowrap !important;}
+  form {width: 720px; border: 1px solid #aaa; background-color: #efefef; padding: 10px; margin-top: 10px;}
+  legend, .ingredient, .effect {white-space: nowrap !important;}
   th {padding: 2px 6px;}
   sup {font-variant: small-caps; color: #0f5ca3;} /*#9900cc;}*/
   a {text-decoration: none;}
   hr {margin: 8px 0;}
   .help hr {margin: 2px 0; width: 75%;}
   .help {font-size: 14px; color: #0f5ca3; font-variant: small-caps;}
-  /*#save {float:right; color:222;}*/
+  /*#save {float:right; color: 222;}*/
   #left, #right {display: table-cell;}
+  .align-right {display: inline-block; float: right;}
 
 .ingredients button, #results td button {
     background: none;

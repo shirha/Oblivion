@@ -1,5 +1,6 @@
 // Oblivion Alchemy Recipes Finder
 // Refactored for Oblivion skill-based effect restrictions
+// https://en.uesp.net/wiki/Oblivion:Alchemy#Calculating_Potion_Strengths
 
 function getCallerLineNumber() {
     const err = new Error();
@@ -26,71 +27,71 @@ let have = [];
 let exclude = [];
 
 const effects = [
-    ["Burden", 43, 0],
-    ["Chameleon", 43, 1],
-    ["Cure Disease", 43, 1],
-    ["Cure Paralysis", 43, 1],
-    ["Cure Poison", 43, 1],
-    ["Damage Agility", 43, 0],
-    ["Damage Endurance", 43, 0],
-    ["Damage Fatigue", 43, 0],
-    ["Damage Health", 43, 0],
-    ["Damage Intelligence", 43, 0],
-    ["Damage Luck", 43, 0],
-    ["Damage Magicka", 43, 0],
-    ["Damage Personality", 43, 0],
-    ["Damage Speed", 43, 0],
-    ["Damage Strength", 43, 0],
-    ["Damage Willpower", 43, 0],
-    ["Detect Life", 43, 1],
-    ["Dispel", 43, 1],
-    ["Drain Fatigue", 43, 0],
-    ["Drain Health", 43, 0],
-    ["Feather", 43, 1],
-    ["Fire Damage", 43, 0],
-    ["Fire Shield", 43, 1],
-    ["Fortify Agility", 43, 1],
-    ["Fortify Endurance", 43, 1],
-    ["Fortify Fatigue", 43, 1],
-    ["Fortify Health", 43, 1],
-    ["Fortify Intelligence", 43, 1],
-    ["Fortify Luck", 43, 1],
-    ["Fortify Magicka", 43, 1],
-    ["Fortify Personality", 43, 1],
-    ["Fortify Speed", 43, 1],
-    ["Fortify Strength", 43, 1],
-    ["Fortify Willpower", 43, 1],
-    ["Frost Damage", 43, 0],
-    ["Frost Shield", 43, 1],
-    ["Invisibility", 43, 1],
-    ["Light", 43, 1],
-    ["Night-Eye", 43, 1],
-    ["Paralyze", 43, 0],
-    ["Reflect Damage", 43, 1],
-    ["Reflect Spell", 43, 1],
-    ["Resist Disease", 43, 1],
-    ["Resist Fire", 43, 1],
-    ["Resist Frost", 43, 1],
-    ["Resist Paralysis", 43, 1],
-    ["Resist Poison", 43, 1],
-    ["Resist Shock", 43, 1],
-    ["Restore Agility", 43, 1],
-    ["Restore Endurance", 43, 1],
-    ["Restore Fatigue", 43, 1],
-    ["Restore Health", 43, 1],
-    ["Restore Intelligence", 43, 1],
-    ["Restore Luck", 43, 1],
-    ["Restore Magicka", 43, 1],
-    ["Restore Personality", 43, 1],
-    ["Restore Speed", 43, 1],
-    ["Restore Strength", 43, 1],
-    ["Restore Willpower", 43, 1],
-    ["Shield", 43, 1],
-    ["Shock Damage", 43, 0],
-    ["Shock Shield", 43, 1],
-    ["Silence", 43, 0],
-    ["Water Breathing", 43, 1],
-    ["Water Walking", 43, 1]
+    ["Burden",1,1,0.21,0],
+    ["Chameleon",0,1,0.63,1],
+    ["Cure Disease",0,0,1400,0],
+    ["Cure Paralysis",0,0,500,0],
+    ["Cure Poison",0,0,600,0],
+    ["Damage Agility",2,1,100,0],
+    ["Damage Endurance",2,1,100,0],
+    ["Damage Fatigue",2,1,4.4,0],
+    ["Damage Health",2,1,12,0],
+    ["Damage Intelligence",2,1,100,0],
+    ["Damage Luck",2,1,100,0],
+    ["Damage Magicka",2,1,2.45,0],
+    ["Damage Personality",2,1,100,0],
+    ["Damage Speed",2,1,100,0],
+    ["Damage Strength",2,1,100,0],
+    ["Damage Willpower",2,1,100,0],
+    ["Detect Life",0,1,0.08,0],
+    ["Dispel",0,2,3.6,0],
+    ["Drain Fatigue",1,1,0.18,0],
+    ["Drain Health",1,1,0.9,0],
+    ["Feather",0,1,0.01,0],
+    ["Fire Damage",2,1,7.5,0],
+    ["Fire Shield",0,1,0.95,1],
+    ["Fortify Agility",0,1,0.6,0],
+    ["Fortify Endurance",0,1,0.6,0],
+    ["Fortify Fatigue",0,1,0.04,0],
+    ["Fortify Health",0,1,0.14,0],
+    ["Fortify Intelligence",0,1,0.6,0],
+    ["Fortify Luck",0,1,0.6,0],
+    ["Fortify Magicka",0,1,0.15,0],
+    ["Fortify Personality",0,1,0.6,0],
+    ["Fortify Speed",0,1,0.6,0],
+    ["Fortify Strength",0,1,0.6,0],
+    ["Fortify Willpower",0,1,0.6,0],
+    ["Frost Damage",2,1,7.4,0],
+    ["Frost Shield",0,1,0.95,1],
+    ["Invisibility",0,3,40,0],
+    ["Light",0,1,0.051,0],
+    ["Night-Eye",0,3,22,0],
+    ["Paralyze",3,3,475,0],
+    ["Reflect Damage",0,1,2.5,1],
+    ["Reflect Spell",0,1,3.5,1],
+    ["Resist Disease",0,1,0.5,1],
+    ["Resist Fire",0,1,0.5,1],
+    ["Resist Frost",0,1,0.5,1],
+    ["Resist Paralysis",0,1,0.75,1],
+    ["Resist Poison",0,1,0.5,1],
+    ["Resist Shock",0,1,0.5,1],
+    ["Restore Agility",0,1,38,0],
+    ["Restore Endurance",0,1,38,0],
+    ["Restore Fatigue",0,1,2,0],
+    ["Restore Health",0,1,10,0],
+    ["Restore Intelligence",0,1,38,0],
+    ["Restore Luck",0,1,38,0],
+    ["Restore Magicka",0,1,2.5,0],
+    ["Restore Personality",0,1,38,0],
+    ["Restore Speed",0,1,38,0],
+    ["Restore Strength",0,1,38,0],
+    ["Restore Willpower",0,1,38,0],
+    ["Shield",0,1,0.45,1],
+    ["Shock Damage",2,1,7.8,0],
+    ["Shock Shield",0,1,0.95,1],
+    ["Silence",1,3,60,0],
+    ["Water Breathing",0,3,14.5,0],
+    ["Water Walking",0,3,13,0]
 ];
 
 const allIngredients = [
@@ -227,8 +228,9 @@ const isle = id => allIngredients[id]?.[3] ? '<sup>si</sup>' : '';
 const relIngredient = allIngredients.map(item => item[0]);
 const relEffectList = allIngredients.map(item => item[1]);
 const relEffect = effects.map(effect => effect[0]);
-const relWorth = effects.map(effect => effect[1]);
-const relAffinity = effects.map(effect => effect[2]);
+// const relWorth = effects.map(effect => effect[1]);
+// const relAffinity = effects.map(effect => effect[2]);
+const relAffinity = effects.map(effect => effect[1]);
 // indexIngredient
 const ii = Object.fromEntries(
     allIngredients.map(([ingredientName], index) => [ingredientName, index])
@@ -275,6 +277,8 @@ $(document).ready(() => {
 
     // buildEffects();
 
+    // console.log( effects.map((e,i) => `${e[0]}${getEffectTooltip(i)}`).join('\n') );
+
     // Event delegation for buttons
     $(document).on('click', '.remove-ingredient', function() {
         const id = parseInt($(this).data('id'), 10);
@@ -296,8 +300,8 @@ $(document).ready(() => {
 
 function buildEffects() {
     const effectHtml = effects.map((effect, index) => `
-        <span class="effect" data-id="${index}" style="font-weight:bold;color:${effect[2] === 1 ? 'green' : 'red'}">
-            ${effect[0]} ($${effect[1]})
+        <span class="effect" data-id="${index}" style="font-weight:bold;color:${effect[1] === 0 ? 'green' : 'red'}">
+            ${effect[0]} ($${43/*effect[1]*/})
         </span><br/>
     `).join('');
     $("#listeffects").html(effectHtml).css("visibility", "visible");
@@ -340,7 +344,7 @@ function hoverEffect() {
     return `${html}<tr>${indexCell}<td>${name}</td></tr>`;
   }, '');
 
-  return `<b>Ingredients With Effect:</b><br/><table>${tableRows}</table>`;
+  return `${getEffectTooltip(this.dataset.id)}<br><b>Ingredients With Effect:</b><br/><table>${tableRows}</table>`;
 }
 
 function hoverIngredients() {
@@ -352,8 +356,8 @@ function hoverIngredients() {
     let totalWorth = 0;
     const effectsHtml = ingredientEffects.map(effectId => {
         const effect = effects[effectId];
-        totalWorth += effect[1];
-        return `<span style="font-weight:bold;color:${effect[2] === 1 ? 'green' : 'red'}">${effect[0]}</span><br/>`;
+        totalWorth += 43; // effect[1];
+        return `<span style="font-weight:bold;color:${effect[1] === 0 ? 'green' : 'red'}">${effect[0]}</span><br/>`;
     }).join('');
     return `${effectsHtml}<hr><b>Frequeency:</b> ${allIngredients[ingredientId][2]}`;
 }
@@ -501,7 +505,7 @@ function refreshResults(rebuildMatches) {
         const effectsHtml = effectIds.map(id => {
             const effect = effects[id];
             return `
-                <span class="effect" data-id="${id}" style="font-weight:bold;color:${effect[2] === 1 ? 'green' : 'red'}">
+                <span class="effect" data-id="${id}" style="font-weight:bold;color:${effect[1] === 0 ? 'green' : 'red'}">
                     ${effect[0]}
                 </span><br/>
             `;
@@ -831,3 +835,181 @@ function formatRecipe(recipe, index, db) {
     results.push(`\tskillRequired: ${skill || 'Unknown'}\n`);
     return results.join('\n');
 }
+
+// Type constants
+const NOTYPE = 0;
+const STDTYPE = 1;
+const MAGTYPE = 2;
+const DURTYPE = 3;
+
+// Equipment factors
+const equipFacs = {
+    [STDTYPE]: {
+        Calc: 0.35,
+        CalcDur: 0.35,
+        CalcMag: 1.4,
+        RetDur: 1,
+        RetMag: 0.5,
+        Alem: 2
+    },
+    [MAGTYPE]: {
+        Calc: 0.3,
+        RetMag: 0.5,
+        Alem: 2
+    },
+    [DURTYPE]: {
+        Calc: 0.25,
+        RetDur: 0.35,
+        Alem: 2
+    }
+};
+
+function calculateEffectStrength(effectId) {
+    const [name, poison, type, cost, pct] = effects[parseInt(effectId,10)];
+
+    // const equip_str  = [0, 0.1, 0.25, 0.5, 0.75, 1., 1.25];
+
+    // Get inputs from HTML
+    const skill = parseFloat(document.getElementById('skill').value) || 75;
+    const luck = parseFloat(document.getElementById('luck').value) || 50;
+    const mortar = parseFloat(document.getElementById('mortar').value) || 1.0;
+    const retort = parseFloat(document.getElementById('retort').value) || 2.0;
+    const alembic = parseFloat(document.getElementById('alembic').value) || 0.2;
+    const calcinator = parseFloat(document.getElementById('calcinator').value) || 3.0;
+
+    // Equipment strengths
+    const equipStr = {
+        MP: mortar,
+        Ret: retort,
+        Alem: alembic,
+        Calc: calcinator
+    };
+
+    // Modified alchemy skill
+    const modAlc = skill + 0.4 * (luck - 50);
+
+    // Initialize result
+    let mag, dur, baseMag, baseDur, sideMag, sideDur;
+
+    // Handle NOTYPE
+    if (type === NOTYPE) {
+        return { mag: 1, dur: 1, baseMag: 1, baseDur: 1, sideMag: 1, sideDur: 1 };
+    }
+
+    // Base strength calculation
+//    $str = ($mod_alc + $equip_str[$equip['MP']]*25.)/($this->cost/10.);
+    let str = (modAlc + equipStr.MP * 25) / (cost / 10);
+    if (type === STDTYPE) {
+        mag = Math.pow(str / 4, 1 / 2.28);
+        dur = 4 * mag;
+    } else if (type === MAGTYPE) {
+        mag = Math.pow(str, 1 / 1.28);
+        dur = 1;
+    } else {
+        dur = str;
+        mag = 1;
+    }
+    baseMag = mag;
+    baseDur = dur;
+
+    // Adjust for equipment
+    if (type === STDTYPE) {
+        if (!poison) {
+            mag = baseMag;
+            if (equipStr.Ret) {
+                mag += baseMag * equipFacs[type].CalcMag * equipStr.Calc;
+            } else {
+                mag += baseMag * equipFacs[type].Calc * equipStr.Calc;
+            }
+            mag += baseMag * equipFacs[type].RetMag * equipStr.Ret;
+
+            dur = baseDur;
+            dur += baseDur * equipFacs[type].CalcDur * equipStr.Calc;
+            dur += baseDur * equipFacs[type].RetDur * equipStr.Ret;
+        } else {
+            mag = baseMag * Math.pow(1 + equipFacs[type].Calc * equipStr.Calc, 2);
+            dur = baseDur * Math.pow(1 + equipFacs[type].Calc * equipStr.Calc, 2);
+        }
+    } else if (type === DURTYPE) {
+        dur = baseDur;
+        dur += baseDur * equipFacs[type].Calc * equipStr.Calc;
+        if (!poison) {
+            dur += baseDur * equipFacs[type].RetDur * equipStr.Ret;
+        }
+    } else {
+        mag = baseMag;
+        if (poison) {
+            mag += baseMag * equipFacs[type].Calc * equipStr.Calc;
+        } else if (equipStr.Ret && equipStr.Calc) {
+            mag += baseMag * equipFacs[type].Calc * equipStr.Calc * equipFacs[type].RetMag * equipStr.Ret;
+        } else {
+            mag += baseMag * equipFacs[type].Calc * equipStr.Calc;
+            mag += baseMag * equipFacs[type].RetMag * equipStr.Ret;
+        }
+    }
+
+    // Round values
+    mag = Math.max(1, Math.floor(mag + 0.5001));
+    dur = Math.max(1, Math.floor(dur + 0.5001));
+
+    // Side effects for potions
+    // if (!poison) {
+        sideMag = mag;
+        sideDur = dur;
+    // } else {
+    if (poison) {
+        if (type === MAGTYPE) {
+            sideMag = mag - baseMag * equipFacs[type].Alem * equipStr.Alem;
+        } else if (type === DURTYPE) {
+            sideDur = dur - baseDur * equipFacs[type].Alem * equipStr.Alem;
+        } else {
+            sideMag = baseMag * (1 + equipFacs[type].Calc * equipStr.Calc) *
+                  (1 + equipFacs[type].Calc * equipStr.Calc - equipFacs[type].Alem * equipStr.Alem);
+            sideDur = baseDur * (1 + equipFacs[type].Calc * equipStr.Calc) *
+                  (1 + equipFacs[type].Calc * equipStr.Calc - equipFacs[type].Alem * equipStr.Alem);
+        }
+        sideMag = Math.max(1, Math.floor(sideMag + 0.5001));
+        sideDur = Math.max(1, Math.floor(sideDur + 0.5001));
+    }
+
+    return { mag, dur, baseMag, baseDur, sideMag, sideDur };
+}
+
+function getEffectTooltip(effectId, doSide = 0) {
+    const [name, poison, type, cost, pct] = effects[effectId];
+    const findPoison = false; // Potion mode
+
+    if (type === NOTYPE) {
+        return "";
+    }
+
+    const { mag, dur, sideMag, sideDur } = calculateEffectStrength(effectId);
+    let finalMag, finalDur;
+
+    // Select mag/dur based on doSide and poison
+    if (!doSide || (doSide === 1 && poison === findPoison)) {
+        finalMag = mag;
+        finalDur = dur;
+    } else {
+        finalMag = sideMag;
+        finalDur = sideDur;
+    }
+
+    let out = " (";
+    if (type === STDTYPE || type === MAGTYPE) {
+        out += finalMag;
+        out += pct ? '%' : 'pt';
+    }
+    if (type === STDTYPE) {
+        out += ', ';
+    }
+    if (type === STDTYPE || type === DURTYPE) {
+        out += finalDur + 's';
+    }
+    out += ")";
+    return out;
+}
+
+// hoverEffect.call(document.querySelector('#xyz .effect'));
+// hoverEffect.call($("#xyz .effect")[0]) // unwrap jquery
+
