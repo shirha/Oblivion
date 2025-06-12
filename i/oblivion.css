@@ -309,15 +309,18 @@
   form {width: 720px; border: 1px solid #aaa; background-color: #efefef; padding: 10px; margin-top: 10px;}
   legend, .ingredient, .effect {white-space: nowrap !important;}
   th {padding: 2px 6px;}
-  sup {font-variant: small-caps; color: #0f5ca3;} /*#9900cc;}*/
+  sup {font-variant: small-caps; color: #0075ff;} /*#0f5ca3; #9900cc;*/
   a {text-decoration: none;}
   hr {margin: 8px 0;}
   .help hr {margin: 2px 0; width: 75%;}
-  .help {font-size: 14px; color: #0f5ca3; font-variant: small-caps;}
+  .help {font-size: 14px; color: #0075ff; font-variant: small-caps;}
   /*#save {float:right; color: 222;}*/
   #left, #right {display: table-cell;}
   .align-right {display: inline-block; float: right;}
+  smaller {color: red; font-family: "Great Vibes", cursive; padding-left: 10px; line-height: 1.75;}
+  .custom {color: #0075ff; font-family: cursive;}
 
+#ingredients {margin-bottom: 100px;}
 .ingredients button, #results td button {
     background: none;
     border: none;

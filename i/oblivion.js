@@ -25,6 +25,9 @@ let matches = [];
 let newMatches = [], filteredNewMatches = [];
 let have = [];
 let exclude = [];
+let customIngredients = new Set(
+    JSON.parse(localStorage.getItem('oblivionCustomIngredients')) || [95, 118]
+);
 
 const effects = [
     ["Burden",1,1,0.21,0],
@@ -224,7 +227,7 @@ const allIngredients = [
 //     return acc;
 // }, {});
 
-const isle = id => allIngredients[id]?.[3] ? '<sup>si</sup>' : '';
+const isle = id => allIngredients[id]?.[3] ? '&thinsp;<sup>si</sup>' : '';
 const relIngredient = allIngredients.map(item => item[0]);
 const relEffectList = allIngredients.map(item => item[1]);
 const relEffect = effects.map(effect => effect[0]);
@@ -276,7 +279,6 @@ $(document).ready(() => {
     });
 
     // buildEffects();
-
     // console.log( effects.map((e,i) => `${e[0]}${getEffectTooltip(i)}`).join('\n') );
 
     // Event delegation for buttons
@@ -313,14 +315,12 @@ function buildEffects() {
             collision: "fit"
         },
         items: "[data-id]"
-        // open: function(event, ui) {
-        //     ui.tooltip.css("max-width", "300px");
-        // }
     });
 }
 
 function hoverEffect() {
-  const effectId = Number(this.dataset.id);
+  const [effectId, sideEffect] = this.dataset.id.split(',').map(Number);
+  // const effectId = Number(this.dataset.id);
   if (!Number.isInteger(effectId)) {
     console.warn('Invalid effectId:', this.dataset.id);
     return '<b>Ingredients With Effect:</b><br/><table></table>';
@@ -344,7 +344,7 @@ function hoverEffect() {
     return `${html}<tr>${indexCell}<td>${name}</td></tr>`;
   }, '');
 
-  return `${getEffectTooltip(this.dataset.id)}<br><b>Ingredients With Effect:</b><br/><table>${tableRows}</table>`;
+  return `${getEffectTooltip(effectId, sideEffect)}<br><b>Ingredients With Effect:</b><br/><table>${tableRows}</table>`;
 }
 
 function hoverIngredients() {
@@ -356,7 +356,7 @@ function hoverIngredients() {
     let totalWorth = 0;
     const effectsHtml = ingredientEffects.map(effectId => {
         const effect = effects[effectId];
-        totalWorth += 43; // effect[1];
+        // totalWorth += 43; // effect[1];
         return `<span style="font-weight:bold;color:${effect[1] === 0 ? 'green' : 'red'}">${effect[0]}</span><br/>`;
     }).join('');
     return `${effectsHtml}<hr><b>Frequeency:</b> ${allIngredients[ingredientId][2]}`;
@@ -442,7 +442,7 @@ function refreshResults(rebuildMatches) {
                 <button class="remove-ingredient" data-id="${id}"><img src="${deleteIcon}"/></button>
                 <button class="add-filter-include" data-id="${id}"><img src="${scriptAddIcon}"/></button>
                 <button class="add-filter-exclude" data-id="${id}"><img src="${scriptDeleteIcon}"/></button>
-                <span class="ingredient" data-name="${id}">${relIngredient[id]} ${isle(id)}</span><br/>
+                <span class="ingredient" data-name="${id}">${relIngredient[id]}${isle(id)}</span><br/>
             `).join('')}
             ${excludeIngredients()}
         </div>
@@ -497,15 +497,15 @@ function refreshResults(rebuildMatches) {
             const name = id === 1000 ? "none" : relIngredient[id];
             return `
                 <td>
-                    <span data-name="${id}" class="ingredient">${name} ${isle(id)}</span>
+                    <span data-name="${id}" class="ingredient">${name}${isle(id)}</span>
                     ${ingredientOptions(id)}
                 </td>
             `;
         }).join('');
         const effectsHtml = effectIds.map(id => {
-            const effect = effects[id];
+            const effect = effects[id]; // [name, poison, type, cost, pct]
             return `
-                <span class="effect" data-id="${id}" style="font-weight:bold;color:${effect[1] === 0 ? 'green' : 'red'}">
+                <span class="effect" data-id="${id},${!purity&&effect[1]?1:0}" style="font-weight:bold;color:${effect[1] === 0 ? 'green' : 'red'}">
                     ${effect[0]}
                 </span><br/>
             `;
@@ -529,6 +529,11 @@ function refreshResults(rebuildMatches) {
     setTimeout(addHoverEffects, 100);
 }
 
+function arrayToObject(arr) {
+    const [name, poison, type, cost, pct] = arr;
+    return { name, poison, type, cost, pct };
+}
+
 function calcPurity(effectIds){
     if(effectIds.every(e => effects[e][1] === 0)) return 1;
     if(effectIds.every(e => effects[e][1] !== 0)) return 2;
@@ -537,17 +542,24 @@ function calcPurity(effectIds){
 
 function filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si) {
     return preGeneratedRecipes[recipeSize]
-        .filter(pregen => pregen[2] <= alchemySkill &&
-                         !pregen[0].some(i =>  allIngredients[i][2] <= freq) &&
-                         (si || pregen[0].every(i => !allIngredients[i]?.[3]))) // Shivering Isles filter
-                   // && (pregen[0].some(i => !allIngredients[i][3] || allIngredients[i][3] && si)))
+        .filter(pregen => {
+            const [ingredients] = pregen;
+            if (pregen[2] > alchemySkill) return false;
+            if (freq === 5) {
+                return ingredients.some(i => customIngredients.has(i));
+            }
+            return !ingredients.some(i => allIngredients[i][2] <= freq || (!si && allIngredients[i][3] === 1));
+        })
         .map(([ingredients, effectIds, skill, purity, value]) => { 
             const usableEffects = getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill);
             purity = calcPurity(usableEffects);
             value[1] = usableEffects.length;
-            return [ingredients, usableEffects, skill, purity, value];})
-        .filter(pregen => pregen[1].length >= 1); // Oblivion allows just 1 effect with 3,4 ingredients
-}                                                 // There are no 1 effect recipes in pregen[3,4]
+            return [ingredients, usableEffects, skill, purity, value];
+        })
+        .filter(pregen => pregen[1].length >= 1);
+        // Oblivion allows just 1 effect with 3,4 ingredients
+        // There are no 1 effect recipes in pregen[3,4]
+}
 
 function getUsableEffectsForRecipe(ingredients, effectIds, alchemySkill) {
     return effectIds.filter(effectId => {
@@ -675,10 +687,15 @@ function addItem(id, element) {
         console.log(`addItem(): ${id} ${relIngredient[id]}`);
         have.push(id);
         removeRare(id);
+        const freq = parseInt($('input[name="freq"]:checked').val(), 10) || 0;
+        if (freq === 5) {
+            customIngredients.add(id);
+            localStorage.setItem('oblivionCustomIngredients', JSON.stringify([...customIngredients]));
+        }
         const recipeSize = parseInt($('input[name="recipeSize"]:checked').val(), 10) || 2;
         const alchemySkill = parseInt($('input[name="alch"]:checked').val(), 10) || 0;
-        const freq = parseInt($('input[name="freq"]:checked').val(), 10) || 0;
         const si = $("#si").prop("checked");
+
         const matchSet = new Set(matches.map(m => JSON.stringify(m[0])));
     //  newMatches = filterPreGeneratedRecipes(alchemySkill, recipeSize, freq, si)
         newMatches = filterPreGeneratedRecipes(75, recipeSize, 1, 1)
@@ -687,6 +704,7 @@ function addItem(id, element) {
         newMatches = newMatches.filter(m => !matchSet.has(JSON.stringify(m[0])));
         matches = matches.concat(newMatches);
         console.log('newMatches=',newMatchesLength,'filteredNewMatches=',newMatches.length);
+
         syncMatches();
         offset = 0;
         refresh(false);
@@ -698,16 +716,13 @@ function removeItem(id) {
     console.log(`removeItem(): ${id} ${relIngredient[id]}`);
     have = have.filter(h => h !== id);
     if (!exclude.includes(id)) exclude.push(id);
+    if (customIngredients.delete(id)) {
+        localStorage.setItem('oblivionCustomIngredients', JSON.stringify([...customIngredients]));
+    }
     syncMatches();
     offset = 0;
     refresh(false);
 }
-
-// function removeHave(id) {
-//     have = have.filter(h => h !== id);
-//     syncMatches();
-//     refresh(false);
-// }
 
 function removeRare(id) {
     exclude = exclude.filter(e => e !== id);
@@ -715,18 +730,26 @@ function removeRare(id) {
 
 function deleteRare(freq, si, resetHave = false) {
     exclude = [];
-    allIngredients.forEach((ingredient, index) => {
-        if ((!si && ingredient[3] === 1) || ingredient[2] <= freq) {
-            exclude.push(index);
-        }
-    });
+    if (freq === 5) {
+        allIngredients.forEach((_, index) => {
+            if (!customIngredients.has(index)) {
+                exclude.push(index);
+            }
+        });
+    } else {
+        allIngredients.forEach((ingredient, index) => {
+            if (ingredient[2] <= freq || (!si && ingredient[3] === 1)) {
+                exclude.push(index);
+            }
+        });
+    }
     if (resetHave) {
         have = allIngredients.map((_, i) => i).filter(i => !exclude.includes(i));
     } else {
         have = have.filter(i => !exclude.includes(i));
     }
     syncMatches();
-    if (dbg & 1) console.log(`deleteRare: freq=${freq}, si=${si}, have=${have.length}, exclude=${exclude.length}`);
+    if (dbg & 1) console.log(`deleteRare: freq=${freq}, si=${si}, have=${have.length}, exclude=${exclude.length}, customIngredients=${customIngredients.size}`);
 }
 
 function removeFilter(index){
@@ -742,7 +765,7 @@ function excludeIngredients() {
         <h4>Rare Ingredients Excluded</h4>
         ${exclude.map(id => `
             <button class="add-ingredient" data-id="${id}"><img src="${addItemIcon}"/></button>
-            <span class="ingredient" data-name="${id}">${relIngredient[id]} ${isle(id)}</span><br/>
+            <span class="ingredient" data-name="${id}">${relIngredient[id]}${isle(id)}</span><br/>
         `).join('')}
     `;
 }
@@ -867,15 +890,15 @@ const equipFacs = {
 function calculateEffectStrength(effectId) {
     const [name, poison, type, cost, pct] = effects[parseInt(effectId,10)];
 
-    // const equip_str  = [0, 0.1, 0.25, 0.5, 0.75, 1., 1.25];
+    // const equip_str  = [0, 0.1, 0.25, 0.5, 0.75, 1., 1.25]; now in equipment select
 
     // Get inputs from HTML
     const skill = parseFloat(document.getElementById('skill').value) || 75;
     const luck = parseFloat(document.getElementById('luck').value) || 50;
-    const mortar = parseFloat(document.getElementById('mortar').value) || 1.0;
-    const retort = parseFloat(document.getElementById('retort').value) || 2.0;
-    const alembic = parseFloat(document.getElementById('alembic').value) || 0.2;
-    const calcinator = parseFloat(document.getElementById('calcinator').value) || 3.0;
+    const mortar = parseFloat(document.getElementById('mortar').value);
+    const retort = parseFloat(document.getElementById('retort').value);
+    const alembic = parseFloat(document.getElementById('alembic').value);
+    const calcinator = parseFloat(document.getElementById('calcinator').value);
 
     // Equipment strengths
     const equipStr = {
@@ -1007,6 +1030,8 @@ function getEffectTooltip(effectId, doSide = 0) {
         out += finalDur + 's';
     }
     out += ")";
+    out += doSide ? ' <smaller>Side Effect</smaller>' : '';
+    // console.log(out);
     return out;
 }
 
