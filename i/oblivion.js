@@ -222,11 +222,6 @@ const allIngredients = [
     ["Wormwood Leaves", [25, 36, 8, 11], 3, 0]
 ];
 
-// const ii = allIngredients.reduce((acc, [ingredientName], index) => {
-//     acc[ingredientName] = index;
-//     return acc;
-// }, {});
-
 const isle = id => allIngredients[id]?.[3] ? '&thinsp;<sup>si</sup>' : '';
 const relIngredient = allIngredients.map(item => item[0]);
 const relEffectList = allIngredients.map(item => item[1]);
@@ -240,7 +235,7 @@ const ii = Object.fromEntries(
 );
 // showIngredient; si('Troll Fat'); 'Troll Fat: Damage Agility, Fortify Personality, Damage Willpower, Damage Health'
 const si = name => `${name}: ${allIngredients[ii[name]][1].map(i => effects[i][0]).join(', ')}`;
-// showAllIngredient
+// showAllIngredients
 function sai() {
     allIngredients.forEach((e,i)=>{
         console.log(si(e[0]));
@@ -298,6 +293,7 @@ $(document).ready(() => {
         const id = parseInt($(this).data('id'), 10);
         if (!isNaN(id)) addItem(id);
     });
+    $('#custom').attr('title', "Custom Ingredients List");
 });
 
 function buildEffects() {
@@ -344,7 +340,11 @@ function hoverEffect() {
     return `${html}<tr>${indexCell}<td>${name}</td></tr>`;
   }, '');
 
-  return `${getEffectTooltip(effectId, sideEffect)}<br><b>Ingredients With Effect:</b><br/><table>${tableRows}</table>`;
+  return `
+    ${getEffectTooltip(effectId, sideEffect)}
+    <br><b>Ingredients With Effect:</b><br/>
+    <table>${tableRows}</table>
+  `;
 }
 
 function hoverIngredients() {
@@ -663,15 +663,15 @@ function syncMatches() {
     if (dbg & 2) console.log(`syncMatches: matches=${matches.length}, have=${have.length}, exclude=${exclude.length}`);
 }
 
-function add() {
-    const value = $("#autocomplete").val().toLowerCase();
-    const index = relIngredient.findIndex(ing => ing.toLowerCase() === value);
-    if (index === -1 || have.includes(index)) return;
-    removeRare(index);
-    have.push(index);
-    $("#autocomplete").val("");
-    refresh(false);
-}
+// function add() {
+//     const value = $("#autocomplete").val().toLowerCase();
+//     const index = relIngredient.findIndex(ing => ing.toLowerCase() === value);
+//     if (index === -1 || have.includes(index)) return;
+//     removeRare(index);
+//     have.push(index);
+//     $("#autocomplete").val("");
+//     refresh(false);
+// }
 
 function addAll() {
     const freq = parseInt($('input[name="freq"]:checked').val(), 10) || 0;
@@ -1010,7 +1010,7 @@ function getEffectTooltip(effectId, doSide = 0) {
     let finalMag, finalDur;
 
     // Select mag/dur based on doSide and poison
-    if (!doSide || (doSide === 1 && poison === findPoison)) {
+    if (!doSide) { // || (doSide === 1 && poison === findPoison)) {
         finalMag = mag;
         finalDur = dur;
     } else {

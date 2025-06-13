@@ -314,11 +314,10 @@
   hr {margin: 8px 0;}
   .help hr {margin: 2px 0; width: 75%;}
   .help {font-size: 14px; color: #0075ff; font-variant: small-caps;}
-  /*#save {float:right; color: 222;}*/
   #left, #right {display: table-cell;}
   .align-right {display: inline-block; float: right;}
   smaller {color: red; font-family: "Great Vibes", cursive; padding-left: 10px; line-height: 1.75;}
-  .custom {color: #0075ff; font-family: cursive;}
+  #custom {color: #0075ff; font-family: cursive;}
 
 #ingredients {margin-bottom: 100px;}
 .ingredients button, #results td button {
