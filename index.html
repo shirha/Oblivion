@@ -34,7 +34,7 @@
                     <label class="align-right">Max Recipes: <input id="max_results" class="ui-corner-all" size="3" maxlength="5" value="20">
                     <button type="button" class="ui-corner-all" onclick="refresh(false)">Update</button></label>
                 </fieldset>
-                </td><td class="more"> <!--style="width:120px;"-->
+                </td><td class="more">
                 <fieldset>
                     <legend>Mortar & Pestle</legend>
                     <select id="mortar">
@@ -90,12 +90,11 @@
                     <label><input type="radio" name="alch" value="25"> 25</label>
                     <label><input type="radio" name="alch" value="50"> 50</label>
                     <label><input type="radio" name="alch" value="75" checked> 75</label>
-                    <!--button id="save" class="ui-corner-all" onclick="save()" disabled>Save</button-->
                 </fieldset>
                 </td><td colspan="2">
                 <fieldset>
                     <legend>Exclude Frequency<sup>&thinsp;†</sup></legend>
-                    <label><input type="radio" name="freq" value="5"><span class="custom"> C </span></label>
+                    <label><input type="radio" name="freq" value="5"><span id="custom"> C </span></label>
                     <label><input type="radio" name="freq" value="1" checked> 1</label>
                     <label><input type="radio" name="freq" value="2"> 2</label>
                     <label><input type="radio" name="freq" value="3"> 3</label>
@@ -143,9 +142,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <!--script src="i/jquery-3.6.0.min.js"></script>
-    <script src="i/jquery-ui-1.13.2.min.js"></script>
-    <script src="i/pako-2.1.0.min.js"></script-->
     <script src="i/oblivion.js"></script>
 </body>
 </html>
